@@ -1,0 +1,3 @@
+# Insert a coin, then press player 1 start
+900 coin
+1000 start

@@ -1,0 +1,10 @@
+# Insert a coin and start a game
+900 coin
+1000 start
+
+# Exercise movement and action buttons
+1300-1700 right
+1800-2100 left
+2200 a
+2400 b
+2600-2800 down
