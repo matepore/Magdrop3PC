@@ -1,162 +1,146 @@
-﻿# Magdrop3PC
+# Magdrop3PC
 
-A Windows-focused static recompilation project for the MVS arcade version of *Magical Drop III*, built on the Neo Geo recompilation toolkit.
+A Windows static recompilation of **Magical Drop III** (Neo Geo MVS), built with the [neogeorecomp](https://github.com/matepore/neogeorecomp) toolkit.
 
-The goal is to keep game-specific code separate from the Neo Geo runtime and game data, making future modifications and enhancements easier to maintain.
+The project recompiles the game's original code into a native executable while keeping game-specific code, the recompilation toolkit, and game data separate. It provides a foundation for running, studying, and modifying the game on Windows.
 
-## Project structure
+Game ROMs and Neo Geo BIOS files are not included. You must provide your own compatible files.
 
-- `magdrop3/` — Game-specific source code, tests, CMake configuration, and local game data directories.
-- `MagicalDropGUI.ps1` — Windows GUI for launching the game and configuring controls.
-- `MagicalDropGUI.vbs` — Windows launcher for the GUI.
-- `neogeorecomp/` — Git submodule containing the Neo Geo recompilation toolkit, pinned to a specific commit.
-- `metalslug-reference/` — Local reference project, maintained separately from the root repository.
-- `vcpkg/` — Local vcpkg checkout used to manage C/C++ dependencies.
+## Project Structure
 
-The root repository does not include the contents of the `metalslug-reference/` and `vcpkg/` directories. They must be obtained and configured separately.
+- `magdrop3/` — Game-specific source code, CMake configuration, tests, and local game data directories.
+- `magdrop3/roms/` — Location for the Magical Drop III ROM files.
+- `magdrop3/bios/` — Location for the required Neo Geo BIOS files.
+- `magdrop3/controls.cfg` — Optional local controller configuration.
+- `magdrop3/Execute_Magdrop3_SDL2.bat` — Windows launcher for the SDL2 executable.
+- `MagicalDropGUI.ps1` — PowerShell graphical interface for launching the game and configuring controls.
+- `MagicalDropGUI.vbs` — Windows launcher for the graphical interface.
+- `neogeorecomp/` — Git submodule containing the Neo Geo recompilation toolkit.
+- `vcpkg/` — Local dependency-manager checkout used for the build; it is not included in the repository.
 
-The toolkit is tracked as a Git submodule. When cloning the repository, initialize it with:
+The `metalslug-reference/` directory used during development is maintained separately and is not required to build the project.
+
+## Clone the Repository
+
+Clone the repository and initialize its submodules:
 
 ```powershell
 git clone --recurse-submodules https://github.com/matepore/Magdrop3PC.git
+cd Magdrop3PC
 ```
 
-If the repository has already been cloned without its submodules, initialize them from the project root:
+If you already cloned the repository without its submodules, run:
 
 ```powershell
 git submodule update --init --recursive
 ```
 
-A fresh setup must also provide the required local reference project and vcpkg checkout, with compatible versions and configuration.
-
 ## Requirements
 
-The current Windows development setup uses:
+To build the SDL2 executable on Windows, you need:
 
-- Windows
+- Windows x64
+- Git
 - CMake
-- Visual Studio C++ build tools
-- SDL2
-- vcpkg with the `x64-windows` triplet
+- Visual Studio C++ Build Tools, including MSVC and the Windows SDK
+- vcpkg
+- SDL2 installed through vcpkg for the `x64-windows` triplet
+- A compatible Magical Drop III MVS ROM set and the required Neo Geo BIOS files to run the game
 
-The verified local configuration used the CMake generator `Visual Studio 18 2026`, platform `x64`, and the toolchain file in the local `vcpkg/` checkout.
+## Set Up vcpkg and SDL2
 
-The installed CMake version in that environment was `4.5.0-rc1`, a release candidate rather than a stable release. Other environments may require different tool versions or generator settings.
-
-The commands below assume that the Visual Studio generator is available, the required C++ components are installed, vcpkg is configured, and SDL2 can be resolved through the selected toolchain.
-
-## Build the SDL2 executable
-
-Run these commands from the project root in PowerShell:
+The project uses [vcpkg](https://github.com/microsoft/vcpkg) to manage SDL2. If you do not already have vcpkg, open a terminal at the repository root and clone and bootstrap it:
 
 ```powershell
-cmake -S magdrop3 -B magdrop3/build-sdl2-game-vs-x64 `
-  -G "Visual Studio 18 2026" `
-  -A x64 `
-  -DCMAKE_TOOLCHAIN_FILE="$PWD/vcpkg/scripts/buildsystems/vcpkg.cmake"
+git clone https://github.com/microsoft/vcpkg.git
+.\vcpkg\bootstrap-vcpkg.bat
+```
 
-cmake --build magdrop3/build-sdl2-game-vs-x64 `
-  --target magdrop3 --config Release
+Install SDL2 for the Windows x64 triplet:
+
+```powershell
+.\vcpkg\vcpkg.exe install sdl2:x64-windows
+```
+
+These commands place the vcpkg checkout in the repository root, which matches the toolchain path used in the build instructions below. If you keep vcpkg elsewhere, adjust the toolchain path accordingly.
+
+## Build the SDL2 Executable
+
+Open **Developer PowerShell for Visual Studio** with the x64 MSVC toolchain available. Run these commands from the repository root:
+
+```powershell
+cmake -S magdrop3 -B magdrop3/build-sdl2 `
+  -G "NMake Makefiles" `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_TOOLCHAIN_FILE="$PWD/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+  -DVCPKG_TARGET_TRIPLET=x64-windows
+
+cmake --build magdrop3/build-sdl2 --target magdrop3
 ```
 
 The expected executable location is:
 
 ```text
-magdrop3/build-sdl2-game-vs-x64/Release/magdrop3.exe
-```
-
-These commands create a separate build configuration. Test the resulting executable before treating it as equivalent to the existing, manually verified build.
-
-Keep build directories separate when changing CMake generators, toolchains, or build options. Do not reuse a build directory configured for a different generator or toolchain.
-
-## Run the game
-
-The existing, manually verified SDL2 executable is located at:
-
-```text
 magdrop3/build-sdl2/magdrop3.exe
 ```
 
-The Windows launcher is:
+CMake must be able to locate SDL2 through the selected vcpkg toolchain. If configuration fails, verify that MSVC and NMake are available in the current terminal, SDL2 is installed for `x64-windows`, and the toolchain path points to the intended vcpkg checkout.
+
+## Run the Game
+
+First, place your ROM and BIOS files in the directories described in the **Game Data** section. From the repository root, run:
+
+```powershell
+.\magdrop3\build-sdl2\magdrop3.exe `
+  --rom-path ".\magdrop3\roms" `
+  --bios-path ".\magdrop3\bios"
+```
+
+Alternatively, launch the game using:
 
 ```text
 magdrop3/Execute_Magdrop3_SDL2.bat
 ```
 
-The launcher changes its working directory to the game folder and passes the local ROM and BIOS directory paths to the executable.
+The launcher uses the executable at `magdrop3/build-sdl2/magdrop3.exe`.
 
-To run the existing executable directly, open PowerShell in `magdrop3/` and use:
+## Game Data
 
-```powershell
-.\build-sdl2\magdrop3.exe `
-  --rom-path ".\roms" `
-  --bios-path ".\bios"
-```
+This repository does not distribute Magical Drop III ROMs or Neo Geo BIOS files.
 
-The existing SDL2 build has been manually tested for windowed startup, menus, gameplay, audio, and USB gamepad input. These results apply to that specific build and do not automatically validate other build directories or future versions.
-
-## Game data
-
-ROM and BIOS files are not included in this repository. Place legally obtained files in the local directories:
+Place your own legally obtained, compatible files in these directories:
 
 ```text
 magdrop3/roms/
 magdrop3/bios/
 ```
 
-The GUI supplies the ROM and BIOS directory paths when launching the executable.
+The ROM set must correspond to the **MVS arcade version of Magical Drop III**. The required BIOS files must also be available for the selected game configuration.
 
-Build-time recompilation settings are separate from runtime paths. A blank `MAGDROP3_ROM_DIR` or `MAGDROP3_BIOS_DIR` value in the CMake cache means that the corresponding path was not configured for that build-time step; it does not necessarily indicate a problem with runtime paths supplied by the launcher.
+Keep ROMs and BIOS files separate from source code and generated build outputs. Never commit game ROMs or BIOS files to the repository.
 
-Keep game data separate from source code and generated build outputs. Never commit ROM or BIOS files.
+## Controller Configuration
 
-## Controller configuration
+Controller bindings are stored locally in:
 
-The GUI supports controller binding capture and saving controller assignments locally.
-
-The local `magdrop3/controls.cfg` file is excluded from version control to avoid committing personal settings. Controller capture requires the SDL2-enabled executable.
-
-## Dependency and attribution
-
-The Neo Geo recompilation toolkit originated in the project maintained by `sp00nznet`:
-
-https://github.com/sp00nznet/neogeorecomp
-
-The local toolkit repository is maintained separately from the root `Magdrop3PC` repository and contains project-specific changes, including SDL2 and controller-capture work. Changes to the toolkit belong to the nested toolkit repository's history, not the root repository's commit history.
-
-The `neogeorecomp/` submodule records a specific toolkit commit. Updating the toolkit requires updating the submodule checkout and, when appropriate, committing the new submodule reference in the root repository.
-
-Preserve upstream license and copyright notices and notices for bundled dependencies. Before distributing a fresh setup intended for other users, verify that all dependency references are accessible and that the required build instructions and licensing information are complete.
-
-`metalslug-reference/` and `vcpkg/` are local-only checkouts at present and are not automatically populated by cloning the root repository.
-
-## Version-control exclusions
-
-The root `.gitignore` excludes:
-
-- ROM and BIOS directories
-- Build output directories and compiled binaries
-- Generated screenshots and verification logs
-- Local controller settings
-- Other local or generated files intended to remain outside version control
-
-Review staged files before every commit. Never commit ROMs, BIOS dumps, generated build artifacts, or personal controller settings.
-
-The toolkit has its own Git repository and working-tree status. Check it separately when reviewing toolkit changes:
-
-```powershell
-git status --short --branch
-git -C .\neogeorecomp status --short --branch
-git submodule status
+```text
+magdrop3/controls.cfg
 ```
 
-A clean root repository does not by itself guarantee that the nested toolkit working tree is clean.
+If this file is missing, the game uses the default controls.
 
-## Development notes
+The PowerShell GUI (`MagicalDropGUI.ps1`) provides a graphical interface for launching the game and configuring controls. `MagicalDropGUI.vbs` can be used to start the GUI from Windows.
 
-- Keep experimental builds in separate directories.
-- Do not reuse a CMake build directory after changing generators or toolchains; create a new build directory instead.
-- Run conformance tests and recompilation verification after changes to the toolkit.
-- Record verification results with the specific build configuration and command used.
-- Treat a successful headless verification run as evidence for that run, not as proof that every gameplay scenario has been tested.
-- Test newly compiled executables separately before replacing the known-good executable.
+Controller binding capture requires the SDL2-enabled executable. The local `controls.cfg` file is excluded from version control so personal settings do not become part of the shared project.
+
+## Dependency and Attribution
+
+- **[neogeorecomp](https://github.com/matepore/neogeorecomp)** — Neo Geo recompilation toolkit used as the foundation of this project.
+- **[Original neogeorecomp project](https://github.com/sp00nznet/neogeorecomp)** — Upstream project from which the toolkit originated.
+- **[Metal Slug reference project](https://github.com/sp00nznet/metalslug)** — Reference implementation used during development.
+
+The `neogeorecomp/` directory is a Git submodule with its own repository history. Toolkit changes are maintained separately from the main `Magdrop3PC` repository.
+
+CMake, Visual Studio Build Tools, SDL2, and vcpkg are external dependencies and must be installed or obtained separately. Consult their respective projects for installation instructions and licensing terms.
+
+Preserve the original copyright notices and licenses for the toolkit and all third-party dependencies when modifying or redistributing the project.
