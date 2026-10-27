@@ -1,0 +1,28 @@
+# Insert a coin and start a game
+900 coin
+1000 start
+
+# Player 1: movement and action buttons
+1300-1500 left
+1600-1800 right
+1900-2100 up
+2200-2400 down
+2500 a
+2700 b
+2900 c
+3100 d
+
+# Player 2: movement and action buttons
+3400 p2left
+3600 p2right
+3800 p2up
+4000 p2down
+4200 p2a
+4400 p2b
+4600 p2c
+4800 p2d
+
+# Additional mixed inputs
+5200-5400 left+a
+5500-5700 right+b
+5800-6000 down+c

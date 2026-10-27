@@ -6,7 +6,7 @@ title Magical Drop III - SDL2
 rem Use this folder as the working directory.
 cd /d "%~dp0"
 
-set "EXE=%~dp0build-sdl2\magdrop3.exe"
+set "EXE=%~dp0build-final\magdrop3.exe"
 set "ROM_DIR=%~dp0roms"
 set "BIOS_DIR=%~dp0bios"
 
