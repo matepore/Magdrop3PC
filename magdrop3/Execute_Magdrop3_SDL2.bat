@@ -34,7 +34,7 @@ if not exist "%BIOS_DIR%" (
 )
 
 echo Iniciando el juego...
-echo Los controles se cargaran desde controls.cfg.
+echo La configuracion se cargara desde settings.cfg.
 echo.
 
 "%EXE%" --rom-path "%ROM_DIR%" --bios-path "%BIOS_DIR%"

@@ -12,8 +12,8 @@
 /magdrop3/roms/
 /magdrop3/bios/
 
-# Local controller settings
-/magdrop3/controls.cfg
+# Local game settings
+/magdrop3/settings.cfg
 
 # Generated output, screenshots, and verification logs
 /magdrop3/screenshots-test/

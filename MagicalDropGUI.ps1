@@ -12,7 +12,7 @@ Add-Type -AssemblyName System.Drawing
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $game = Join-Path $root 'magdrop3'
-$cfg  = Join-Path $game 'controls.cfg'
+$cfg  = Join-Path $game 'settings.cfg'
 $captureExe = Join-Path $game 'build-sdl2-game-vs-x64\Release\magdrop3.exe'
 
 $defaults = [ordered]@{
@@ -77,95 +77,75 @@ $labels = [ordered]@{
 
 function Read-Map {
     $map = [ordered]@{}
-
-    foreach ($key in $defaults.Keys) {
-        $map[$key] = $defaults[$key]
-    }
-
+    foreach ($key in $defaults.Keys) { $map[$key] = $defaults[$key] }
     if (Test-Path -LiteralPath $cfg) {
+        $inControls = $false
         foreach ($line in Get-Content -LiteralPath $cfg) {
+            if ($line -match '^\s*\[([^\]]+)\]\s*$') {
+                $inControls = ($matches[1] -eq 'Controls')
+                continue
+            }
+            if (-not $inControls) { continue }
             if ($line -match '^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$') {
-                $key = $matches[1]
-                $value = $matches[2]
-
-                if (
-                    $map.Contains($key) -and
-                    -not [string]::IsNullOrWhiteSpace($value)
-                ) {
+                $key = $matches[1]; $value = $matches[2]
+                if ($map.Contains($key) -and -not [string]::IsNullOrWhiteSpace($value)) {
                     $map[$key] = $value
                 }
             }
         }
     }
-
     return $map
 }
 
 function Read-PadMap {
     $padMap = [ordered]@{}
-
     if (Test-Path -LiteralPath $cfg) {
+        $inControls = $false
         foreach ($line in Get-Content -LiteralPath $cfg) {
+            if ($line -match '^\s*\[([^\]]+)\]\s*$') {
+                $inControls = ($matches[1] -eq 'Controls')
+                continue
+            }
+            if (-not $inControls) { continue }
             if ($line -match '^\s*(PAD_[A-Z0-9_]+)\s*=\s*(.*?)\s*$') {
-                $key = $matches[1]
-                $value = $matches[2]
-
-                if (-not [string]::IsNullOrWhiteSpace($value)) {
-                    $padMap[$key] = $value
-                }
+                $key = $matches[1]; $value = $matches[2]
+                if (-not [string]::IsNullOrWhiteSpace($value)) { $padMap[$key] = $value }
             }
         }
     }
-
     return $padMap
 }
 
 function Save-Map($map, $padMap) {
-    # Preserve comments, unrelated settings, and unknown configuration
-    # entries instead of silently deleting them.
-    $extraLines = @()
-
+    # Replace [Controls] while retaining unknown control entries and all other sections.
+    $otherLines = @()
+    $extraControlLines = @()
+    $inControls = $false
     if (Test-Path -LiteralPath $cfg) {
         foreach ($line in Get-Content -LiteralPath $cfg) {
-            if ($line -match '^\s*([A-Z0-9_]+)\s*=') {
-                $key = $matches[1]
-
-                if (
-                    $defaults.Contains($key) -or
-                    $key -match '^PAD_'
-                ) {
-                    continue
-                }
+            if ($line -match '^\s*\[([^\]]+)\]\s*$') {
+                $inControls = ($matches[1] -eq 'Controls')
+                if (-not $inControls) { $otherLines += $line }
+                continue
             }
-
-            $extraLines += $line
+            if ($inControls) {
+                if ($line -match '^\s*([A-Z0-9_]+)\s*=') {
+                    $key = $matches[1]
+                    if (-not $defaults.Contains($key) -and $key -notmatch '^PAD_') { $extraControlLines += $line }
+                } elseif ($line -match '^\s*(#|;)' -or [string]::IsNullOrWhiteSpace($line)) {
+                    $extraControlLines += $line
+                }
+            } else { $otherLines += $line }
         }
     }
-
-    $lines = @(
-        '# Magical Drop III controls'
-        '# Keyboard SDL key names; Escape is reserved.'
-        '# Controller bindings use BTN, HAT, and AXIS names.'
-        ''
-    )
-
-    foreach ($key in $defaults.Keys) {
-        $lines += "$key=$($map[$key])"
-    }
-
+    $lines = @('[Controls]', '# Keyboard SDL key names; Escape is reserved.', '# Controller bindings use BTN, HAT, and AXIS names.', '')
+    foreach ($key in $defaults.Keys) { $lines += "$key=$($map[$key])" }
     $lines += ''
-
     foreach ($key in $padMap.Keys) {
-        if (-not [string]::IsNullOrWhiteSpace([string]$padMap[$key])) {
-            $lines += "$key=$($padMap[$key])"
-        }
+        if (-not [string]::IsNullOrWhiteSpace([string]$padMap[$key])) { $lines += "$key=$($padMap[$key])" }
     }
-
-    if ($extraLines.Count -gt 0) {
-        $lines += ''
-        $lines += $extraLines
-    }
-
+    if ($extraControlLines.Count -gt 0) { $lines += ''; $lines += $extraControlLines }
+    if ($otherLines.Count -gt 0) { $lines += ''; $lines += $otherLines }
     Set-Content -LiteralPath $cfg -Value $lines -Encoding ASCII
 }
 
@@ -1027,7 +1007,7 @@ $controlsButton.Add_Click({
 $mainForm.Controls.Add($controlsButton)
 
 $infoLabel = New-Object System.Windows.Forms.Label
-$infoLabel.Text = 'Settings saved to magdrop3\controls.cfg'
+$infoLabel.Text = 'Settings saved to magdrop3\settings.cfg'
 $infoLabel.Location = [System.Drawing.Point]::new(25, 212)
 $infoLabel.Size = [System.Drawing.Size]::new(370, 24)
 $mainForm.Controls.Add($infoLabel)
