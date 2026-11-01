@@ -11,7 +11,7 @@ Game ROMs and Neo Geo BIOS files are not included. You must provide your own com
 - `magdrop3/` — Game-specific source code, CMake configuration, tests, and local game data directories.
 - `magdrop3/roms/` — Location for the Magical Drop III ROM files.
 - `magdrop3/bios/` — Location for the required Neo Geo BIOS files.
-- `magdrop3/controls.cfg` — Optional local controller configuration.
+- `magdrop3/settings.cfg` — Unified local configuration for controls and graphics.
 - `magdrop3/Execute_Magdrop3_SDL2.bat` — Windows launcher for the SDL2 executable.
 - `MagicalDropGUI.ps1` — PowerShell graphical interface for launching the game and configuring controls.
 - `MagicalDropGUI.vbs` — Windows launcher for the graphical interface.
@@ -121,17 +121,17 @@ Keep ROMs and BIOS files separate from source code and generated build outputs. 
 
 ## Controller Configuration
 
-Controller bindings are stored locally in:
+Controller, graphics, and future sound settings are stored locally in:
 
 ```text
-magdrop3/controls.cfg
+magdrop3/settings.cfg
 ```
 
-If this file is missing, the game uses the default controls.
+The file is divided into named sections such as `[Controls]`, `[Graphics]`, and `[Sound]`. If it is missing, the game starts with default settings.
 
 The PowerShell GUI (`MagicalDropGUI.ps1`) provides a graphical interface for launching the game and configuring controls. `MagicalDropGUI.vbs` can be used to start the GUI from Windows.
 
-Controller binding capture requires the SDL2-enabled executable. The local `controls.cfg` file is excluded from version control so personal settings do not become part of the shared project.
+Controller binding capture requires the SDL2-enabled executable. The local `settings.cfg` file is excluded from version control so personal settings do not become part of the shared project.
 
 ## Dependency and Attribution
 
