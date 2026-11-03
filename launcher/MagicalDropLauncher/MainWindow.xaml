@@ -1,0 +1,153 @@
+<Window x:Class="MagicalDropLauncher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Magical Drop III Launcher"
+        Width="940" Height="700" MinWidth="820" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BackgroundBrush}"
+        Foreground="{StaticResource TextBrush}">
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="MAGICAL DROP III" FontSize="30" FontWeight="Black"
+                           Foreground="{StaticResource TextBrush}"/>
+                <TextBlock Text="PC RECOMPILATION  /  GAME LAUNCHER" FontSize="11"
+                           FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"
+                           Margin="2,5,0,0"/>
+            </StackPanel>
+            <Border Grid.Column="1" Background="#2A2419" BorderBrush="#6D4C1C"
+                    BorderThickness="1" CornerRadius="6" Padding="12,8" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="8" Height="8" Fill="{StaticResource AccentBrush}" Margin="0,0,8,0"/>
+                    <TextBlock Text="ARCADE  /  MVS" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource AccentBrush}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="1" Background="{StaticResource PanelBrush}" CornerRadius="10"
+                Padding="18" Margin="0,0,0,18">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="GAME CONFIGURATION" FontSize="12" FontWeight="Bold"
+                               Foreground="{StaticResource AccentBrush}"/>
+                    <TextBlock Text="Choose the system BIOS and verify your game files before playing."
+                               Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,5,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="BIOS REGION" Foreground="{StaticResource MutedBrush}"
+                               FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <ComboBox x:Name="BiosRegionCombo" Width="190" SelectionChanged="BiosRegionCombo_SelectionChanged">
+                        <ComboBoxItem Content="Europe / Asia" Tag="sp-s2.sp1"/>
+                        <ComboBoxItem Content="United States" Tag="sp-u2.sp1"/>
+                        <ComboBoxItem Content="Japan" Tag="sp-j2.sp1"/>
+                    </ComboBox>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.05*"/>
+                <ColumnDefinition Width="18"/>
+                <ColumnDefinition Width="0.95*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{StaticResource PanelBrush}" CornerRadius="10" Padding="18">
+                <StackPanel>
+                    <TextBlock Text="GAME FILES" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Text="ROM DIRECTORY" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedBrush}"/>
+                    <DockPanel Margin="0,5,0,16">
+                        <Button DockPanel.Dock="Right" Content="Browse" Style="{StaticResource ActionButton}"
+                                Click="BrowseRomDirectory_Click" Margin="10,0,0,0"/>
+                        <TextBlock x:Name="RomDirectoryText" Style="{StaticResource PathText}"/>
+                    </DockPanel>
+
+                    <TextBlock Text="BIOS DIRECTORY" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedBrush}"/>
+                    <DockPanel Margin="0,5,0,16">
+                        <Button DockPanel.Dock="Right" Content="Browse" Style="{StaticResource ActionButton}"
+                                Click="BrowseBiosDirectory_Click" Margin="10,0,0,0"/>
+                        <TextBlock x:Name="BiosDirectoryText" Style="{StaticResource PathText}"/>
+                    </DockPanel>
+
+                    <TextBlock Text="GAME EXECUTABLE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedBrush}"/>
+                    <DockPanel Margin="0,5,0,18">
+                        <Button DockPanel.Dock="Right" Content="Browse" Style="{StaticResource ActionButton}"
+                                Click="BrowseExecutable_Click" Margin="10,0,0,0"/>
+                        <TextBlock x:Name="ExecutableText" Style="{StaticResource PathText}"/>
+                    </DockPanel>
+
+                    <Separator Background="#343844" Margin="0,0,0,16"/>
+                    <TextBlock Text="REQUIRED FILE SET" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Text="The launcher checks every required game ROM, the selected system BIOS and its shared support ROMs."
+                               TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource MutedBrush}"/>
+                    <Button Content="REFRESH FILE CHECK" Style="{StaticResource ActionButton}"
+                            HorizontalAlignment="Left" Margin="0,16,0,0"
+                            Click="RefreshFiles_Click"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" Background="{StaticResource PanelBrush}" CornerRadius="10" Padding="18">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="SYSTEM CHECK" Style="{StaticResource SectionTitle}"/>
+                    <Border Grid.Row="1" Background="{StaticResource PanelLightBrush}" CornerRadius="6"
+                            Padding="12" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock x:Name="StatusText" Text="Checking files..." FontSize="13"
+                                       FontWeight="Bold"/>
+                            <TextBlock x:Name="StatusDetailText" Text="Please wait."
+                                       FontSize="11" Foreground="{StaticResource MutedBrush}"
+                                       Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="ValidationList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" FontSize="11" Margin="0,3,0,3"
+                                               TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="3" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Console / AES mode is not available in the current runtime."
+                           FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                <TextBlock Text="Magdrop3PC  •  Native Windows Launcher" FontSize="10"
+                           Foreground="#6F7380" Margin="0,4,0,0"/>
+            </StackPanel>
+            <Button x:Name="LaunchButton" Grid.Column="1" Content="PLAY MAGICAL DROP III"
+                    Style="{StaticResource PrimaryButton}" IsEnabled="False"
+                    Click="LaunchGame_Click"/>
+        </Grid>
+    </Grid>
+</Window>

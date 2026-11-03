@@ -35,3 +35,7 @@
 .vs/
 .vscode/
 CMakeUserPresets.json
+
+# WPF launcher build output
+/launcher/**/bin/
+/launcher/**/obj/
