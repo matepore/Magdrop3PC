@@ -53,6 +53,22 @@
                     <TextBlock Text="BIOS REGION" Foreground="{StaticResource MutedBrush}"
                                FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <ComboBox x:Name="BiosRegionCombo" Width="190" SelectionChanged="BiosRegionCombo_SelectionChanged">
+                        <ComboBox.ItemContainerStyle>
+                            <Style TargetType="{x:Type ComboBoxItem}">
+                                <Setter Property="Foreground" Value="#17191F"/>
+                                <Setter Property="Background" Value="#F4F1E8"/>
+                                <Setter Property="Padding" Value="8,6"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsHighlighted" Value="True">
+                                        <Setter Property="Foreground" Value="#17191F"/>
+                                        <Setter Property="Background" Value="#E6D7B8"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Foreground" Value="#17191F"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ComboBox.ItemContainerStyle>
                         <ComboBoxItem Content="Europe / Asia" Tag="sp-s2.sp1"/>
                         <ComboBoxItem Content="United States" Tag="sp-u2.sp1"/>
                         <ComboBoxItem Content="Japan" Tag="sp-j2.sp1"/>
@@ -145,9 +161,13 @@
                 <TextBlock Text="Magdrop3PC  •  Native Windows Launcher" FontSize="10"
                            Foreground="#6F7380" Margin="0,4,0,0"/>
             </StackPanel>
-            <Button x:Name="LaunchButton" Grid.Column="1" Content="PLAY MAGICAL DROP III"
-                    Style="{StaticResource PrimaryButton}" IsEnabled="False"
-                    Click="LaunchGame_Click"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="BuildButton" Content="BUILD" Style="{StaticResource ActionButton}"
+                        Padding="20,13" Margin="0,0,10,0" Click="BuildGame_Click"/>
+                <Button x:Name="LaunchButton" Content="PLAY MAGICAL DROP III"
+                        Style="{StaticResource PrimaryButton}" IsEnabled="False"
+                        Click="LaunchGame_Click"/>
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>
