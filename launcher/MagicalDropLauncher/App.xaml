@@ -17,7 +17,6 @@
         <SolidColorBrush x:Key="MutedBrush" Color="{StaticResource MutedColor}"/>
 
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
         <Style x:Key="SectionTitle" TargetType="TextBlock">
