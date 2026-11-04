@@ -42,6 +42,6 @@ The launcher uses the CMake `NMake Makefiles` generator and creates one independ
 
 You can start the launcher normally by double-clicking its executable. When BUILD is pressed, it locates Visual Studio's C++ x64 toolchain through Visual Studio Installer, initializes the MSVC environment in a hidden child process, and runs CMake without opening a console window. You do not need to start the launcher from a Developer Command Prompt.
 
-The launcher itself can be opened normally by double-clicking its executable. Building the game still requires the MSVC C++ x64 toolchain, CMake, and the repository's installed vcpkg dependencies. The launcher discovers and initializes the compiler environment automatically in a hidden child process; no Developer Command Prompt or visible console is required.
+Building the game still requires the MSVC C++ x64 toolchain, CMake, and the repository's installed vcpkg dependencies. The launcher discovers and initializes the compiler environment automatically in a hidden child process; no Developer Command Prompt or visible console is required.
 
 The current runtime supports the MVS arcade configuration. AES / Console mode is not implemented and is therefore not offered by this launcher.
