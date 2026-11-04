@@ -5,8 +5,10 @@ Native Windows launcher built with C# and WPF.
 ## Requirements
 
 - Windows 10/11 x64
-- .NET 10 SDK
-- Visual Studio 2026 (or compatible Visual Studio installation) with the C++ x64 build tools and NMake
+- .NET 10 SDK to build the launcher
+- Visual Studio 2022/2026 or Build Tools with the MSVC C++ x64 toolchain
+- CMake (available on PATH, installed separately, or included with Visual Studio)
+- The repository's vcpkg directory and installed x64-windows dependencies
 
 ## Build
 
@@ -24,8 +26,14 @@ Launcher preferences are stored locally under `%LOCALAPPDATA%\Magdrop3PC\Launche
 
 ## Building the game
 
-The launcher uses the CMake `NMake Makefiles` generator for all regional builds. It checks that `nmake.exe`, `cl.exe`, and the MSVC `INCLUDE`/`LIB` environment are available before configuring. If they are not, start the launcher from the x64 Native Tools Command Prompt for your Visual Studio installation.
+The launcher uses the CMake `NMake Makefiles` generator and creates one independent build directory per BIOS region:
 
-Regional build trees are created separately as `magdrop3/Build-Europe-Asia-NMake`, `magdrop3/Build-USA-NMake`, and `magdrop3/Build-Japan-NMake`. Existing build directories created with another CMake generator are left untouched.
+- `magdrop3/Build-Europe-Asia`
+- `magdrop3/Build-USA`
+- `magdrop3/Build-Japan`
+
+You can start the launcher normally by double-clicking its executable. When BUILD is pressed, it locates Visual Studio's C++ x64 toolchain through Visual Studio Installer, initializes the MSVC environment in a hidden child process, and runs CMake without opening a console window. You do not need to start the launcher from a Developer Command Prompt.
+
+The machine still needs the C++ build tools, CMake, and the repository's vcpkg dependencies installed; those are the compiler/build dependencies, not launcher console requirements.
 
 The current runtime supports the MVS arcade configuration. AES / Console mode is not implemented and is therefore not offered by this launcher.

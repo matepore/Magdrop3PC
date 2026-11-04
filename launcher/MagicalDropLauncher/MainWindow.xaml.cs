@@ -289,21 +289,141 @@ public partial class MainWindow : Window
         return null;
     }
 
-    private static string? FindExecutableInPath(string executableName)
+    private static string? FindVisualStudioWhere()
+    {
+        string installerDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            "Microsoft Visual Studio", "Installer");
+        string candidate = Path.Combine(installerDirectory, "vswhere.exe");
+        return File.Exists(candidate) ? candidate : null;
+    }
+
+    private static string? FindCMakeExecutable(string? visualStudioDirectory)
     {
         string? pathValue = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrWhiteSpace(pathValue))
-            return null;
-
-        foreach (string directory in pathValue.Split(Path.PathSeparator,
-                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        if (!string.IsNullOrWhiteSpace(pathValue))
         {
-            string candidate = Path.Combine(directory.Trim('"'), executableName);
-            if (File.Exists(candidate))
-                return candidate;
+            foreach (string directory in pathValue.Split(Path.PathSeparator,
+                         StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                string candidate = Path.Combine(directory.Trim('"'), "cmake.exe");
+                if (File.Exists(candidate))
+                    return candidate;
+            }
         }
 
-        return null;
+        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        string[] candidates =
+        [
+            Path.Combine(programFiles, "CMake", "bin", "cmake.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                "CMake", "bin", "cmake.exe")
+        ];
+
+        if (!string.IsNullOrWhiteSpace(visualStudioDirectory))
+        {
+            candidates =
+            [
+                .. candidates,
+                Path.Combine(visualStudioDirectory, "Common7", "IDE",
+                    "CommonExtensions", "Microsoft", "CMake", "CMake", "bin", "cmake.exe")
+            ];
+        }
+
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
+    private static async Task<string> FindVisualStudioInstallationAsync()
+    {
+        string vswhere = FindVisualStudioWhere()
+            ?? throw new InvalidOperationException(
+                "Visual Studio Installer (vswhere.exe) was not found. Install Visual Studio or Build Tools with the C++ x64 build tools.");
+
+        var result = await RunCommandAsync(vswhere,
+            new[]
+            {
+                "-latest",
+                "-products", "*",
+                "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                "-property", "installationPath"
+            },
+            Path.GetDirectoryName(vswhere)!);
+
+        if (result.ExitCode != 0 || string.IsNullOrWhiteSpace(result.Output))
+            throw new InvalidOperationException(
+                "No Visual Studio installation with the MSVC x64 C++ build tools was found. Install the C++ x64 build tools and try again.");
+
+        string installationPath = result.Output
+            .Split(new[] { '\\r', '\\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault()?.Trim()
+            ?? throw new InvalidOperationException("Visual Studio installation path could not be determined.");
+
+        string vcVars = Path.Combine(installationPath, "VC", "Auxiliary", "Build", "vcvarsall.bat");
+        if (!File.Exists(vcVars))
+            throw new InvalidOperationException($"The MSVC environment setup script was not found: {vcVars}");
+
+        return vcVars;
+    }
+
+    private static string QuoteBatchArgument(string argument)
+    {
+        // Percent signs are expanded by cmd.exe even inside quoted arguments.
+        return "\"" + argument.Replace("%", "%%").Replace("\"", "\"\"") + "\"";
+    }
+
+    private static async Task<(int ExitCode, string Output)> RunMsvcCommandAsync(
+        string vcVarsPath,
+        string cmakePath,
+        IEnumerable<string> arguments,
+        string workingDirectory)
+    {
+        string scriptPath = Path.Combine(Path.GetTempPath(),
+            $"Magdrop3PC-build-{Guid.NewGuid():N}.cmd");
+
+        string commandLine = string.Join(" ", arguments.Select(QuoteBatchArgument));
+        string script = string.Join("\r\n",
+            "@echo off",
+            "chcp 65001 >nul",
+            $"call {QuoteBatchArgument(vcVarsPath)} x64 >nul",
+            "if errorlevel 1 exit /b 1",
+            $"{QuoteBatchArgument(cmakePath)} {commandLine}",
+            "exit /b %errorlevel%",
+            "");
+
+        await File.WriteAllTextAsync(scriptPath, script, new System.Text.UTF8Encoding(true));
+
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe",
+                WorkingDirectory = workingDirectory,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            startInfo.ArgumentList.Add("/d");
+            startInfo.ArgumentList.Add("/c");
+            startInfo.ArgumentList.Add(scriptPath);
+
+            using var process = new Process { StartInfo = startInfo };
+            process.Start();
+
+            Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            string output = await stdoutTask + Environment.NewLine + await stderrTask;
+            return (process.ExitCode, output.Trim());
+        }
+        finally
+        {
+            try { File.Delete(scriptPath); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
 
     private static async Task<(int ExitCode, string Output)> RunCommandAsync(
@@ -345,30 +465,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        string cmake = "cmake";
-        string buildDirectory = Path.Combine(_gameDirectory, $"Build-{SelectedBuildRegion}-NMake");
+        string buildDirectory = Path.Combine(_gameDirectory, $"Build-{SelectedBuildRegion}");
         string? toolchain = FindVcpkgToolchain(Directory.GetParent(_gameDirectory)?.FullName ?? _gameDirectory);
-
-        // NMake is a single-configuration generator and requires an initialized MSVC environment.
-        string? nmakePath = FindExecutableInPath("nmake.exe");
-        string? compilerPath = FindExecutableInPath("cl.exe");
-        string? targetArchitecture = Environment.GetEnvironmentVariable("VSCMD_ARG_TGT_ARCH");
-        if (nmakePath is null || compilerPath is null ||
-            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("INCLUDE")) ||
-            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("LIB")) ||
-            (!string.IsNullOrWhiteSpace(targetArchitecture) &&
-             !string.Equals(targetArchitecture, "x64", StringComparison.OrdinalIgnoreCase)))
-        {
-            MessageBox.Show(this,
-                "NMake builds require the x64 MSVC developer environment.\n\n" +
-                "Open the \"x64 Native Tools Command Prompt for VS 2026\" (or the equivalent " +
-                "Developer Command Prompt for your Visual Studio version), then launch MagicalDropLauncher from it.\n\n" +
-                "The launcher needs nmake.exe, cl.exe, INCLUDE and LIB to be available.",
-                "Magical Drop III - Build environment",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return;
-        }
 
         bool buildSucceeded = false;
         string? buildOutputExecutable = null;
@@ -377,33 +475,44 @@ public partial class MainWindow : Window
         BuildButton.IsEnabled = false;
         LaunchButton.IsEnabled = false;
         BiosRegionCombo.IsEnabled = false;
-        StatusText.Text = "CONFIGURING BUILD";
+        StatusText.Text = "PREPARING BUILD ENVIRONMENT";
         StatusText.Foreground = System.Windows.Media.Brushes.Orange;
-        StatusDetailText.Text = $"Preparing {SelectedBuildRegion} build in {buildDirectory}...";
-        ValidationList.ItemsSource = new[] { $"Build output: {buildDirectory}", "CMake configure: in progress" };
+        StatusDetailText.Text = "Locating Visual Studio C++ tools and CMake...";
+        ValidationList.ItemsSource = new[] { $"Build output: {buildDirectory}", "Build environment: in progress" };
 
         try
         {
+            string vcVarsPath = await FindVisualStudioInstallationAsync();
+            string visualStudioDirectory = Directory.GetParent(vcVarsPath)!.Parent!.Parent!.Parent!.FullName;
+            string cmake = FindCMakeExecutable(visualStudioDirectory)
+                ?? throw new InvalidOperationException(
+                    "CMake was not found. Install CMake or add it to PATH.");
+
+            if (toolchain is null)
+                throw new InvalidOperationException(
+                    "The vcpkg CMake toolchain was not found. Make sure the vcpkg directory is present next to the repository.");
+
+            StatusText.Text = "CONFIGURING BUILD";
+            StatusDetailText.Text = $"Preparing {SelectedBuildRegion} build in {buildDirectory}...";
+            ValidationList.ItemsSource = new[] { $"Build output: {buildDirectory}", "CMake configure: in progress" };
+
             var configureArgs = new List<string>
             {
                 "-S", _gameDirectory,
                 "-B", buildDirectory,
                 "-G", "NMake Makefiles",
                 "-DCMAKE_BUILD_TYPE=Release",
+                $"-DCMAKE_TOOLCHAIN_FILE={toolchain}",
+                "-DVCPKG_TARGET_TRIPLET=x64-windows",
                 $"-DMAGDROP3_ROM_DIR={_romDirectory}",
                 $"-DMAGDROP3_BIOS_DIR={_biosDirectory}",
                 $"-DMAGDROP3_BIOS_FILE={SelectedBiosFile}"
             };
 
-            if (toolchain is not null)
-            {
-                configureArgs.Add($"-DCMAKE_TOOLCHAIN_FILE={toolchain}");
-                configureArgs.Add("-DVCPKG_TARGET_TRIPLET=x64-windows");
-            }
-
-            var configure = await RunCommandAsync(cmake, configureArgs, _gameDirectory);
+            var configure = await RunMsvcCommandAsync(vcVarsPath, cmake, configureArgs, _gameDirectory);
             if (configure.ExitCode != 0)
-                throw new InvalidOperationException($"CMake configuration failed (exit code {configure.ExitCode}).\n\n{configure.Output}");
+                throw new InvalidOperationException(
+                    $"CMake configuration failed (exit code {configure.ExitCode}).\\n\\n{configure.Output}");
 
             StatusText.Text = "BUILDING MAGICAL DROP III";
             StatusDetailText.Text = $"Compiling {SelectedBuildRegion} configuration...";
@@ -414,12 +523,13 @@ public partial class MainWindow : Window
                 "CMake build: in progress"
             };
 
-            var build = await RunCommandAsync(cmake,
+            var build = await RunMsvcCommandAsync(vcVarsPath, cmake,
                 new[] { "--build", buildDirectory, "--target", "magdrop3" },
                 _gameDirectory);
 
             if (build.ExitCode != 0)
-                throw new InvalidOperationException($"Build failed (exit code {build.ExitCode}).\n\n{build.Output}");
+                throw new InvalidOperationException(
+                    $"Build failed (exit code {build.ExitCode}).\\n\\n{build.Output}");
 
             string[] executableCandidates =
             [
@@ -462,7 +572,7 @@ public partial class MainWindow : Window
             ValidationList.ItemsSource = new[]
             {
                 $"Build output: {buildDirectory}",
-                "See the status details for the CMake error."
+                "See the status details for the build error."
             };
             MessageBox.Show(this, ex.Message, "Magical Drop III - Build error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
