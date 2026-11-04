@@ -361,7 +361,7 @@ public partial class MainWindow : Window
         {
             MessageBox.Show(this,
                 "NMake builds require the x64 MSVC developer environment.\n\n" +
-                "Open the \\"x64 Native Tools Command Prompt for VS 2026\\" (or the equivalent " +
+                "Open the \"x64 Native Tools Command Prompt for VS 2026\" (or the equivalent " +
                 "Developer Command Prompt for your Visual Studio version), then launch MagicalDropLauncher from it.\n\n" +
                 "The launcher needs nmake.exe, cl.exe, INCLUDE and LIB to be available.",
                 "Magical Drop III - Build environment",
