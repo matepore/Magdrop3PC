@@ -10,13 +10,21 @@ Native Windows launcher built with C# and WPF.
 - CMake (available on PATH, installed separately, or included with Visual Studio)
 - The repository's vcpkg directory and installed x64-windows dependencies
 
-## Build
+## Publish standalone launcher
 
 From the repository root:
 
 ```powershell
-dotnet build .\launcher\MagicalDropLauncher\MagicalDropLauncher.csproj -c Release
+dotnet publish .\launcher\MagicalDropLauncher\MagicalDropLauncher.csproj -c Release
 ```
+
+The standalone executable is generated at:
+
+```
+launcher/MagicalDropLauncher/bin/Release/net10.0-windows/win-x64/publish/MagicalDropLauncher.exe
+```
+
+It includes the .NET runtime and does not require a console or a separately installed .NET Desktop Runtime to launch.
 
 The launcher expects the game executable at `magdrop3/build-final/magdrop3.exe` by default. Use the Browse control to select another build output if needed.
 
@@ -34,6 +42,6 @@ The launcher uses the CMake `NMake Makefiles` generator and creates one independ
 
 You can start the launcher normally by double-clicking its executable. When BUILD is pressed, it locates Visual Studio's C++ x64 toolchain through Visual Studio Installer, initializes the MSVC environment in a hidden child process, and runs CMake without opening a console window. You do not need to start the launcher from a Developer Command Prompt.
 
-The machine still needs the C++ build tools, CMake, and the repository's vcpkg dependencies installed; those are the compiler/build dependencies, not launcher console requirements.
+The launcher itself can be opened normally by double-clicking its executable. Building the game still requires the MSVC C++ x64 toolchain, CMake, and the repository's installed vcpkg dependencies. The launcher discovers and initializes the compiler environment automatically in a hidden child process; no Developer Command Prompt or visible console is required.
 
 The current runtime supports the MVS arcade configuration. AES / Console mode is not implemented and is therefore not offered by this launcher.

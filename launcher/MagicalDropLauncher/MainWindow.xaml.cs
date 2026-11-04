@@ -354,7 +354,7 @@ public partial class MainWindow : Window
                 "No Visual Studio installation with the MSVC x64 C++ build tools was found. Install the C++ x64 build tools and try again.");
 
         string installationPath = result.Output
-            .Split(new[] { '\\r', '\\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
             .FirstOrDefault()?.Trim()
             ?? throw new InvalidOperationException("Visual Studio installation path could not be determined.");
 
@@ -512,7 +512,7 @@ public partial class MainWindow : Window
             var configure = await RunMsvcCommandAsync(vcVarsPath, cmake, configureArgs, _gameDirectory);
             if (configure.ExitCode != 0)
                 throw new InvalidOperationException(
-                    $"CMake configuration failed (exit code {configure.ExitCode}).\\n\\n{configure.Output}");
+                    $"CMake configuration failed (exit code {configure.ExitCode}).\n\n{configure.Output}");
 
             StatusText.Text = "BUILDING MAGICAL DROP III";
             StatusDetailText.Text = $"Compiling {SelectedBuildRegion} configuration...";
@@ -529,7 +529,7 @@ public partial class MainWindow : Window
 
             if (build.ExitCode != 0)
                 throw new InvalidOperationException(
-                    $"Build failed (exit code {build.ExitCode}).\\n\\n{build.Output}");
+                    $"Build failed (exit code {build.ExitCode}).\n\n{build.Output}");
 
             string[] executableCandidates =
             [
