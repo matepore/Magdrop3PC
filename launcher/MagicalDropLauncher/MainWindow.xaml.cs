@@ -118,6 +118,14 @@ public partial class MainWindow : Window
     private string SelectedBiosFile =>
         (BiosRegionCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "sp-s2.sp1";
 
+    private string SelectedBuildRegion =>
+        SelectedBiosFile switch
+        {
+            "sp-u2.sp1" => "USA",
+            "sp-j2.sp1" => "Japan",
+            _ => "Europe"
+        };
+
     private void UpdatePathLabels()
     {
         RomDirectoryText.Text = _romDirectory;
@@ -128,48 +136,53 @@ public partial class MainWindow : Window
         ExecutableText.ToolTip = _executablePath;
     }
 
+    private List<string> GetDataValidationIssues()
+    {
+        var issues = new List<string>();
+
+        if (!Directory.Exists(_romDirectory))
+        {
+            issues.Add($"ROM directory not found: {_romDirectory}");
+        }
+        else
+        {
+            foreach (string file in RequiredGameRoms)
+            {
+                if (!File.Exists(Path.Combine(_romDirectory, file)))
+                    issues.Add($"Missing game ROM: {file}");
+            }
+        }
+
+        if (!Directory.Exists(_biosDirectory))
+        {
+            issues.Add($"BIOS directory not found: {_biosDirectory}");
+        }
+        else
+        {
+            if (!File.Exists(Path.Combine(_biosDirectory, SelectedBiosFile)))
+                issues.Add($"Missing selected BIOS: {SelectedBiosFile}");
+
+            foreach (string file in RequiredSystemRoms)
+            {
+                if (!File.Exists(Path.Combine(_biosDirectory, file)))
+                    issues.Add($"Missing system ROM: {file}");
+            }
+        }
+
+        return issues;
+    }
+
     private void RefreshValidation()
     {
         _isRefreshing = true;
         try
         {
-            var issues = new List<string>();
-
-            if (!Directory.Exists(_romDirectory))
-            {
-                issues.Add($"ROM directory not found: {_romDirectory}");
-            }
-            else
-            {
-                foreach (string file in RequiredGameRoms)
-                {
-                    if (!File.Exists(Path.Combine(_romDirectory, file)))
-                        issues.Add($"Missing game ROM: {file}");
-                }
-            }
-
-            if (!Directory.Exists(_biosDirectory))
-            {
-                issues.Add($"BIOS directory not found: {_biosDirectory}");
-            }
-            else
-            {
-                string selectedBios = Path.Combine(_biosDirectory, SelectedBiosFile);
-                if (!File.Exists(selectedBios))
-                    issues.Add($"Missing selected BIOS: {SelectedBiosFile}");
-
-                foreach (string file in RequiredSystemRoms)
-                {
-                    if (!File.Exists(Path.Combine(_biosDirectory, file)))
-                        issues.Add($"Missing system ROM: {file}");
-                }
-            }
-
+            List<string> issues = GetDataValidationIssues();
             if (!File.Exists(_executablePath))
                 issues.Add($"Game executable not found: {_executablePath}");
 
             ValidationList.ItemsSource = issues;
-            LaunchButton.IsEnabled = issues.Count == 0;
+            LaunchButton.IsEnabled = issues.Count == 0 && !BuildButton.IsEnabled == false;
 
             if (issues.Count == 0)
             {
@@ -260,6 +273,173 @@ public partial class MainWindow : Window
         return dialog.ShowDialog(this) == true ? dialog.FolderName : null;
     }
 
+    private static string? FindVcpkgToolchain(string startDirectory)
+    {
+        DirectoryInfo? current = new(startDirectory);
+        while (current is not null)
+        {
+            string candidate = Path.Combine(current.FullName, "vcpkg", "scripts",
+                "buildsystems", "vcpkg.cmake");
+            if (File.Exists(candidate))
+                return candidate;
+
+            current = current.Parent;
+        }
+
+        return null;
+    }
+
+    private static async Task<(int ExitCode, string Output)> RunCommandAsync(
+        string fileName, IEnumerable<string> arguments, string workingDirectory)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        foreach (string argument in arguments)
+            startInfo.ArgumentList.Add(argument);
+
+        using var process = new Process { StartInfo = startInfo };
+        process.Start();
+
+        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+        Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        string output = await stdoutTask + Environment.NewLine + await stderrTask;
+        return (process.ExitCode, output.Trim());
+    }
+
+    private async void BuildGame_Click(object sender, RoutedEventArgs e)
+    {
+        List<string> issues = GetDataValidationIssues();
+        if (issues.Count > 0)
+        {
+            ValidationList.ItemsSource = issues;
+            StatusText.Text = $"{issues.Count} BUILD REQUIREMENT(S) MISSING";
+            StatusText.Foreground = System.Windows.Media.Brushes.Orange;
+            StatusDetailText.Text = "Provide all required ROM and BIOS files before building.";
+            return;
+        }
+
+        string cmake = "cmake";
+        string buildDirectory = Path.Combine(_gameDirectory, $"Build-{SelectedBuildRegion}");
+        string? toolchain = FindVcpkgToolchain(Directory.GetParent(_gameDirectory)?.FullName ?? _gameDirectory);
+
+        BuildButton.IsEnabled = false;
+        LaunchButton.IsEnabled = false;
+        BiosRegionCombo.IsEnabled = false;
+        StatusText.Text = "CONFIGURING BUILD";
+        StatusText.Foreground = System.Windows.Media.Brushes.Orange;
+        StatusDetailText.Text = $"Preparing {SelectedBuildRegion} build in {buildDirectory}...";
+        ValidationList.ItemsSource = new[] { $"Build output: {buildDirectory}", "CMake configure: in progress" };
+
+        try
+        {
+            var configureArgs = new List<string>
+            {
+                "-S", _gameDirectory,
+                "-B", buildDirectory,
+                "-DCMAKE_BUILD_TYPE=Release",
+                $"-DMAGDROP3_ROM_DIR={_romDirectory}",
+                $"-DMAGDROP3_BIOS_DIR={_biosDirectory}",
+                $"-DMAGDROP3_BIOS_FILE={SelectedBiosFile}"
+            };
+
+            if (toolchain is not null)
+            {
+                configureArgs.Add($"-DCMAKE_TOOLCHAIN_FILE={toolchain}");
+                configureArgs.Add("-DVCPKG_TARGET_TRIPLET=x64-windows");
+            }
+
+            var configure = await RunCommandAsync(cmake, configureArgs, _gameDirectory);
+            if (configure.ExitCode != 0)
+                throw new InvalidOperationException($"CMake configuration failed (exit code {configure.ExitCode}).
+
+{configure.Output}");
+
+            StatusText.Text = "BUILDING MAGICAL DROP III";
+            StatusDetailText.Text = $"Compiling {SelectedBuildRegion} configuration...";
+            ValidationList.ItemsSource = new[]
+            {
+                $"Build output: {buildDirectory}",
+                "CMake configure: completed",
+                "CMake build: in progress"
+            };
+
+            var build = await RunCommandAsync(cmake,
+                new[] { "--build", buildDirectory, "--config", "Release", "--target", "magdrop3" },
+                _gameDirectory);
+
+            if (build.ExitCode != 0)
+                throw new InvalidOperationException($"Build failed (exit code {build.ExitCode}).
+
+{build.Output}");
+
+            string[] executableCandidates =
+            [
+                Path.Combine(buildDirectory, "magdrop3.exe"),
+                Path.Combine(buildDirectory, "Release", "magdrop3.exe")
+            ];
+
+            string? builtExecutable = executableCandidates.FirstOrDefault(File.Exists);
+            if (builtExecutable is not null)
+            {
+                _executablePath = builtExecutable;
+                UpdatePathLabels();
+                SaveSettings();
+            }
+
+            StatusText.Text = "BUILD COMPLETED";
+            StatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+            StatusDetailText.Text = builtExecutable is null
+                ? $"Build succeeded. Check the output directory: {buildDirectory}"
+                : $"Executable ready: {builtExecutable}";
+            ValidationList.ItemsSource = new[]
+            {
+                $"Region: {SelectedBuildRegion}",
+                $"Output: {buildDirectory}",
+                "CMake configure: completed",
+                "CMake build: completed"
+            };
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = "BUILD FAILED";
+            StatusText.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            StatusDetailText.Text = ex.Message.Length > 900
+                ? ex.Message[..900] + "..."
+                : ex.Message;
+            ValidationList.ItemsSource = new[]
+            {
+                $"Build output: {buildDirectory}",
+                "See the status details for the CMake error."
+            };
+            MessageBox.Show(this, ex.Message, "Magical Drop III - Build error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            BuildButton.IsEnabled = true;
+            BiosRegionCombo.IsEnabled = true;
+            RefreshValidation();
+            if (StatusText.Text == "BUILD COMPLETED")
+            {
+                StatusText.Text = "BUILD COMPLETED";
+                StatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+                StatusDetailText.Text = File.Exists(_executablePath)
+                    ? $"Build output: {buildDirectory}"
+                    : $"Build succeeded. Check: {buildDirectory}";
+            }
+        }
+    }
+
     private void LaunchGame_Click(object sender, RoutedEventArgs e)
     {
         RefreshValidation();
@@ -287,7 +467,9 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show(this,
-                $"The game could not be started.\n\n{ex.Message}",
+                $"The game could not be started.
+
+{ex.Message}",
                 "Magical Drop III - Launch error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
