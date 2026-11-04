@@ -289,6 +289,23 @@ public partial class MainWindow : Window
         return null;
     }
 
+    private static string? FindExecutableInPath(string executableName)
+    {
+        string? pathValue = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(pathValue))
+            return null;
+
+        foreach (string directory in pathValue.Split(Path.PathSeparator,
+                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            string candidate = Path.Combine(directory.Trim('"'), executableName);
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        return null;
+    }
+
     private static async Task<(int ExitCode, string Output)> RunCommandAsync(
         string fileName, IEnumerable<string> arguments, string workingDirectory)
     {
@@ -329,8 +346,26 @@ public partial class MainWindow : Window
         }
 
         string cmake = "cmake";
-        string buildDirectory = Path.Combine(_gameDirectory, $"Build-{SelectedBuildRegion}");
+        string buildDirectory = Path.Combine(_gameDirectory, $"Build-{SelectedBuildRegion}-NMake");
         string? toolchain = FindVcpkgToolchain(Directory.GetParent(_gameDirectory)?.FullName ?? _gameDirectory);
+
+        // NMake is a single-configuration generator and requires an initialized MSVC environment.
+        string? nmakePath = FindExecutableInPath("nmake.exe");
+        string? compilerPath = FindExecutableInPath("cl.exe");
+        if (nmakePath is null || compilerPath is null ||
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("INCLUDE")) ||
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("LIB")))
+        {
+            MessageBox.Show(this,
+                "NMake builds require the x64 MSVC developer environment.\\n\\n" +
+                "Open the \\"x64 Native Tools Command Prompt for VS 2026\\" (or the equivalent " +
+                "Developer Command Prompt for your Visual Studio version), then launch MagicalDropLauncher from it.\\n\\n" +
+                "The launcher needs nmake.exe, cl.exe, INCLUDE and LIB to be available.",
+                "Magical Drop III - Build environment",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
 
         bool buildSucceeded = false;
         string? buildOutputExecutable = null;
@@ -350,6 +385,7 @@ public partial class MainWindow : Window
             {
                 "-S", _gameDirectory,
                 "-B", buildDirectory,
+                "-G", "NMake Makefiles",
                 "-DCMAKE_BUILD_TYPE=Release",
                 $"-DMAGDROP3_ROM_DIR={_romDirectory}",
                 $"-DMAGDROP3_BIOS_DIR={_biosDirectory}",
@@ -376,7 +412,7 @@ public partial class MainWindow : Window
             };
 
             var build = await RunCommandAsync(cmake,
-                new[] { "--build", buildDirectory, "--config", "Release", "--target", "magdrop3" },
+                new[] { "--build", buildDirectory, "--target", "magdrop3" },
                 _gameDirectory);
 
             if (build.ExitCode != 0)
