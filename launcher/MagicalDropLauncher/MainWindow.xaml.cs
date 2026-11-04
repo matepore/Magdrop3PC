@@ -364,9 +364,7 @@ public partial class MainWindow : Window
 
             var configure = await RunCommandAsync(cmake, configureArgs, _gameDirectory);
             if (configure.ExitCode != 0)
-                throw new InvalidOperationException($"CMake configuration failed (exit code {configure.ExitCode}).
-
-{configure.Output}");
+                throw new InvalidOperationException($"CMake configuration failed (exit code {configure.ExitCode}).\n\n{configure.Output}");
 
             StatusText.Text = "BUILDING MAGICAL DROP III";
             StatusDetailText.Text = $"Compiling {SelectedBuildRegion} configuration...";
@@ -382,9 +380,7 @@ public partial class MainWindow : Window
                 _gameDirectory);
 
             if (build.ExitCode != 0)
-                throw new InvalidOperationException($"Build failed (exit code {build.ExitCode}).
-
-{build.Output}");
+                throw new InvalidOperationException($"Build failed (exit code {build.ExitCode}).\n\n{build.Output}");
 
             string[] executableCandidates =
             [
@@ -484,9 +480,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show(this,
-                $"The game could not be started.
-
-{ex.Message}",
+                $"The game could not be started.\n\n{ex.Message}",
                 "Magical Drop III - Launch error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
