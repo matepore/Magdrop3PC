@@ -352,9 +352,12 @@ public partial class MainWindow : Window
         // NMake is a single-configuration generator and requires an initialized MSVC environment.
         string? nmakePath = FindExecutableInPath("nmake.exe");
         string? compilerPath = FindExecutableInPath("cl.exe");
+        string? targetArchitecture = Environment.GetEnvironmentVariable("VSCMD_ARG_TGT_ARCH");
         if (nmakePath is null || compilerPath is null ||
             string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("INCLUDE")) ||
-            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("LIB")))
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("LIB")) ||
+            (!string.IsNullOrWhiteSpace(targetArchitecture) &&
+             !string.Equals(targetArchitecture, "x64", StringComparison.OrdinalIgnoreCase)))
         {
             MessageBox.Show(this,
                 "NMake builds require the x64 MSVC developer environment.\\n\\n" +

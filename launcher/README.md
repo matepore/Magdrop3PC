@@ -6,7 +6,6 @@ Native Windows launcher built with C# and WPF.
 
 - Windows 10/11 x64
 - .NET 10 SDK
-- .NET 10 SDK
 - Visual Studio 2026 (or compatible Visual Studio installation) with the C++ x64 build tools and NMake
 
 ## Build
