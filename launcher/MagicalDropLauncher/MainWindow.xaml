@@ -52,16 +52,15 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="BIOS REGION" Foreground="{StaticResource MutedBrush}"
                                FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <ComboBox x:Name="BiosRegionCombo" Width="190" SelectionChanged="BiosRegionCombo_SelectionChanged">
+                    <ComboBox x:Name="BiosRegionCombo" Width="190"
+                              SelectionChanged="BiosRegionCombo_SelectionChanged">
                         <ComboBox.ItemContainerStyle>
-                            <Style TargetType="{x:Type ComboBoxItem}">
+                            <Style TargetType="ComboBoxItem">
                                 <Setter Property="Foreground" Value="#17191F"/>
                                 <Setter Property="Background" Value="#F4F1E8"/>
-                                <Setter Property="Padding" Value="8,6"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsHighlighted" Value="True">
-                                        <Setter Property="Foreground" Value="#17191F"/>
-                                        <Setter Property="Background" Value="#E6D7B8"/>
+                                        <Setter Property="Background" Value="#E4D8C2"/>
                                     </Trigger>
                                     <Trigger Property="IsSelected" Value="True">
                                         <Setter Property="Foreground" Value="#17191F"/>
