@@ -123,7 +123,7 @@ public partial class MainWindow : Window
         {
             "sp-u2.sp1" => "USA",
             "sp-j2.sp1" => "Japan",
-            _ => "Europe"
+            _ => "Europe-Asia"
         };
 
     private void UpdatePathLabels()
@@ -182,7 +182,7 @@ public partial class MainWindow : Window
                 issues.Add($"Game executable not found: {_executablePath}");
 
             ValidationList.ItemsSource = issues;
-            LaunchButton.IsEnabled = issues.Count == 0 && !BuildButton.IsEnabled == false;
+            LaunchButton.IsEnabled = issues.Count == 0 && BuildButton.IsEnabled;
 
             if (issues.Count == 0)
             {
@@ -332,6 +332,9 @@ public partial class MainWindow : Window
         string buildDirectory = Path.Combine(_gameDirectory, $"Build-{SelectedBuildRegion}");
         string? toolchain = FindVcpkgToolchain(Directory.GetParent(_gameDirectory)?.FullName ?? _gameDirectory);
 
+        bool buildSucceeded = false;
+        string? buildOutputExecutable = null;
+
         BuildButton.IsEnabled = false;
         LaunchButton.IsEnabled = false;
         BiosRegionCombo.IsEnabled = false;
@@ -396,6 +399,9 @@ public partial class MainWindow : Window
                 SaveSettings();
             }
 
+            buildOutputExecutable = builtExecutable;
+            buildSucceeded = true;
+
             StatusText.Text = "BUILD COMPLETED";
             StatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
             StatusDetailText.Text = builtExecutable is null
@@ -429,13 +435,14 @@ public partial class MainWindow : Window
             BuildButton.IsEnabled = true;
             BiosRegionCombo.IsEnabled = true;
             RefreshValidation();
-            if (StatusText.Text == "BUILD COMPLETED")
+
+            if (buildSucceeded)
             {
                 StatusText.Text = "BUILD COMPLETED";
                 StatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
-                StatusDetailText.Text = File.Exists(_executablePath)
-                    ? $"Build output: {buildDirectory}"
-                    : $"Build succeeded. Check: {buildDirectory}";
+                StatusDetailText.Text = buildOutputExecutable is not null
+                    ? $"Executable ready: {buildOutputExecutable}"
+                    : $"Build succeeded. Check the output directory: {buildDirectory}";
             }
         }
     }
