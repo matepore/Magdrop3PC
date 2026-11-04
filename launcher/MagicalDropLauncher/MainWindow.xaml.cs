@@ -334,6 +334,7 @@ public partial class MainWindow : Window
 
         bool buildSucceeded = false;
         string? buildOutputExecutable = null;
+        string? buildFailureMessage = null;
 
         BuildButton.IsEnabled = false;
         LaunchButton.IsEnabled = false;
@@ -417,6 +418,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            buildFailureMessage = ex.Message;
             StatusText.Text = "BUILD FAILED";
             StatusText.Foreground = System.Windows.Media.Brushes.OrangeRed;
             StatusDetailText.Text = ex.Message.Length > 900
@@ -443,6 +445,14 @@ public partial class MainWindow : Window
                 StatusDetailText.Text = buildOutputExecutable is not null
                     ? $"Executable ready: {buildOutputExecutable}"
                     : $"Build succeeded. Check the output directory: {buildDirectory}";
+            }
+            else if (buildFailureMessage is not null)
+            {
+                StatusText.Text = "BUILD FAILED";
+                StatusText.Foreground = System.Windows.Media.Brushes.OrangeRed;
+                StatusDetailText.Text = buildFailureMessage.Length > 900
+                    ? buildFailureMessage[..900] + "..."
+                    : buildFailureMessage;
             }
         }
     }
