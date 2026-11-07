@@ -148,7 +148,9 @@ CMake must be able to locate SDL2 through the selected vcpkg toolchain. If confi
 - Miss recording depends on the game's runtime reaching the relevant code paths; it should not be considered an exhaustive list of every possible missing entry.
 - Game data and build outputs are region-specific.
 
-## Dependency and Attribution
+## License, Dependency and Attribution
+
+Unless otherwise noted, original code authored for **Magdrop3PC** is distributed under the [MIT License](LICENSE). This license does not apply to the **neogeorecomp** submodule or its third-party dependencies, which retain their own licenses. It also does not grant any rights to *Magical Drop III* or other third-party game content, including ROMs, BIOS files, artwork, audio, screenshots, or trademarks; those remain subject to their respective rights and licenses.
 
 - **[neogeorecomp](https://github.com/matepore/neogeorecomp)** — Neo Geo recompilation toolkit used as the foundation of this project.
 - **[Original neogeorecomp project](https://github.com/sp00nznet/neogeorecomp)** — Upstream project from which the toolkit originated.
