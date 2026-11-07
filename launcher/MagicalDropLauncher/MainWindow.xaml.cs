@@ -300,6 +300,11 @@ public partial class MainWindow : Window
 
     private static string? FindCMakeExecutable(string? visualStudioDirectory)
     {
+        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        string preferredCandidate = Path.Combine(programFiles, "CMake", "bin", "cmake.exe");
+        if (File.Exists(preferredCandidate))
+            return preferredCandidate;
+
         string? pathValue = Environment.GetEnvironmentVariable("PATH");
         if (!string.IsNullOrWhiteSpace(pathValue))
         {
@@ -312,22 +317,16 @@ public partial class MainWindow : Window
             }
         }
 
-        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        string[] candidates =
-        [
-            Path.Combine(programFiles, "CMake", "bin", "cmake.exe"),
+        var candidates = new List<string>
+        {
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
                 "CMake", "bin", "cmake.exe")
-        ];
+        };
 
         if (!string.IsNullOrWhiteSpace(visualStudioDirectory))
         {
-            candidates =
-            [
-                .. candidates,
-                Path.Combine(visualStudioDirectory, "Common7", "IDE",
-                    "CommonExtensions", "Microsoft", "CMake", "CMake", "bin", "cmake.exe")
-            ];
+            candidates.Add(Path.Combine(visualStudioDirectory, "Common7", "IDE",
+                "CommonExtensions", "Microsoft", "CMake", "CMake", "bin", "cmake.exe"));
         }
 
         return candidates.FirstOrDefault(File.Exists);
@@ -365,65 +364,92 @@ public partial class MainWindow : Window
         return vcVars;
     }
 
-    private static string QuoteBatchArgument(string argument)
-    {
-        // Percent signs are expanded by cmd.exe even inside quoted arguments.
-        return "\"" + argument.Replace("%", "%%").Replace("\"", "\"\"") + "\"";
-    }
-
     private static async Task<(int ExitCode, string Output)> RunMsvcCommandAsync(
         string vcVarsPath,
         string cmakePath,
         IEnumerable<string> arguments,
         string workingDirectory)
     {
-        string scriptPath = Path.Combine(Path.GetTempPath(),
-            $"Magdrop3PC-build-{Guid.NewGuid():N}.cmd");
-
-        string commandLine = string.Join(" ", arguments.Select(QuoteBatchArgument));
-        string script = string.Join("\r\n",
-            "@echo off",
-            "chcp 65001 >nul",
-            $"call {QuoteBatchArgument(vcVarsPath)} x64 >nul",
-            "if errorlevel 1 exit /b 1",
-            $"{QuoteBatchArgument(cmakePath)} {commandLine}",
-            "exit /b %errorlevel%",
-            "");
-
-        await File.WriteAllTextAsync(scriptPath, script, new System.Text.UTF8Encoding(true));
-
-        try
+        // Run vcvarsall in cmd.exe, then export its environment. CMake itself is
+        // launched directly so paths and arguments never pass through CMD parsing.
+        var environmentStartInfo = new ProcessStartInfo
         {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe",
-                WorkingDirectory = workingDirectory,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-            startInfo.ArgumentList.Add("/d");
-            startInfo.ArgumentList.Add("/c");
-            startInfo.ArgumentList.Add(scriptPath);
+            FileName = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe",
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8
+        };
 
-            using var process = new Process { StartInfo = startInfo };
-            process.Start();
+        environmentStartInfo.ArgumentList.Add("/d");
+        environmentStartInfo.ArgumentList.Add("/c");
+        environmentStartInfo.ArgumentList.Add(
+            $"chcp 65001 >nul && call \\"{vcVarsPath}\\" x64 >nul && set");
 
-            Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
-            Task<string> stderrTask = process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
+        using var environmentProcess = new Process { StartInfo = environmentStartInfo };
+        environmentProcess.Start();
 
-            string output = await stdoutTask + Environment.NewLine + await stderrTask;
-            return (process.ExitCode, output.Trim());
-        }
-        finally
+        Task<string> environmentOutputTask = environmentProcess.StandardOutput.ReadToEndAsync();
+        Task<string> environmentErrorTask = environmentProcess.StandardError.ReadToEndAsync();
+        await environmentProcess.WaitForExitAsync();
+
+        string environmentOutput = await environmentOutputTask;
+        string environmentError = await environmentErrorTask;
+
+        if (environmentProcess.ExitCode != 0)
         {
-            try { File.Delete(scriptPath); }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            return (environmentProcess.ExitCode,
+                string.Join(Environment.NewLine, new[] { environmentOutput, environmentError }
+                    .Where(value => !string.IsNullOrWhiteSpace(value))).Trim());
         }
+
+        var msvcEnvironment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string line in environmentOutput.Split(
+                     new[] { "\\r\\n", "\\n" }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            int separator = line.IndexOf('=');
+            // CMD's SET output can include pseudo-variables such as "=C:".
+            if (separator <= 0)
+                continue;
+
+            msvcEnvironment[line[..separator]] = line[(separator + 1)..];
+        }
+
+        if (!msvcEnvironment.ContainsKey("PATH"))
+            throw new InvalidOperationException(
+                "Visual Studio initialized, but its environment variables could not be read.");
+
+        var cmakeStartInfo = new ProcessStartInfo
+        {
+            FileName = cmakePath,
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        cmakeStartInfo.Environment.Clear();
+        foreach (KeyValuePair<string, string> variable in msvcEnvironment)
+            cmakeStartInfo.Environment[variable.Key] = variable.Value;
+
+        foreach (string argument in arguments)
+            cmakeStartInfo.ArgumentList.Add(argument);
+
+        using var cmakeProcess = new Process { StartInfo = cmakeStartInfo };
+        cmakeProcess.Start();
+
+        Task<string> stdoutTask = cmakeProcess.StandardOutput.ReadToEndAsync();
+        Task<string> stderrTask = cmakeProcess.StandardError.ReadToEndAsync();
+        await cmakeProcess.WaitForExitAsync();
+
+        string output = await stdoutTask + Environment.NewLine + await stderrTask;
+        return (cmakeProcess.ExitCode, output.Trim());
     }
 
     private static async Task<(int ExitCode, string Output)> RunCommandAsync(
@@ -524,7 +550,7 @@ public partial class MainWindow : Window
             };
 
             var build = await RunMsvcCommandAsync(vcVarsPath, cmake,
-                new[] { "--build", buildDirectory, "--target", "magdrop3" },
+                new[] { "--build", buildDirectory, "--config", "Release", "--target", "magdrop3" },
                 _gameDirectory);
 
             if (build.ExitCode != 0)
