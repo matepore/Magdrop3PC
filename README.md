@@ -1,5 +1,11 @@
 # Magdrop3PC
 
+## Project Status and Development Notes
+
+This project was developed primarily with the assistance of artificial intelligence tools, particularly ChatGPT.
+
+**Development status:** The project is currently on hold. I have no plans for further development at the moment and intend to take a break. There is no active roadmap or expected schedule for future updates.
+
 A Windows x64 static recompilation of **Magical Drop III** (Neo Geo MVS), built with the [neogeorecomp](https://github.com/matepore/neogeorecomp) toolkit.
 
 The project recompiles the game's original code into a native executable while keeping game-specific code, the recompilation toolkit, and game data separate. It provides a foundation for running, studying, and modifying the game on Windows.
