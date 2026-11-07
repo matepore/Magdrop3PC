@@ -112,7 +112,7 @@ internal static class DependencyManager
             return null;
 
         var result = await RunCapturedAsync(vswhere,
-            "-latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath");
+            "-latest -products * -property installationPath");
 
         if (result.ExitCode != 0 || string.IsNullOrWhiteSpace(result.Output))
             return null;
