@@ -22,8 +22,10 @@ internal static class DependencyManager
 
         return
         [
-            new("msvc", "Visual Studio C++ Build Tools", visualStudio is not null,
-                visualStudio ?? "Visual Studio with the x64 C++ toolchain was not found."),
+            new("msvc", "Visual Studio C++ Build Tools", visualStudio is not null && nmake is not null,
+                visualStudio is not null && nmake is not null
+                    ? visualStudio
+                    : "Visual Studio with the x64 C++ toolchain was not found or is incomplete."),
             new("nmake", "NMake", nmake is not null,
                 nmake ?? "NMake was not found in the Visual Studio C++ tools."),
             new("cmake", "CMake", cmake is not null,
