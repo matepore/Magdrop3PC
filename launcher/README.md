@@ -40,8 +40,10 @@ The launcher uses the CMake `NMake Makefiles` generator and creates one independ
 - `magdrop3/Build-USA`
 - `magdrop3/Build-Japan`
 
-You can start the launcher normally by double-clicking its executable. When BUILD is pressed, it locates Visual Studio's C++ x64 toolchain through Visual Studio Installer, initializes the MSVC environment in a hidden child process, and runs CMake without opening a console window. You do not need to start the launcher from a Developer Command Prompt.
+You can start the launcher normally by double-clicking its executable. When BUILD is pressed, it locates Visual Studio's C++ x64 toolchain through Visual Studio Installer and initializes the MSVC environment in a hidden `cmd.exe` process. It then launches CMake directly with that environment and captures its output; no temporary command script or visible console is created. You do not need to start the launcher from a Developer Command Prompt.
 
-Building the game still requires the MSVC C++ x64 toolchain, CMake, and the repository's installed vcpkg dependencies. The launcher discovers and initializes the compiler environment automatically in a hidden child process; no Developer Command Prompt or visible console is required.
+The launcher prefers `C:\Program Files\CMake\bin\cmake.exe` when present, then checks `PATH` and Visual Studio's bundled CMake. The game build uses the `Release` configuration and the same `NMake Makefiles` generator as the command-line workflow.
+
+Building the game still requires the MSVC C++ x64 toolchain, CMake, and the repository's installed vcpkg dependencies. The launcher discovers and initializes the compiler environment automatically; no Developer Command Prompt or visible console is required.
 
 The current runtime supports the MVS arcade configuration. AES / Console mode is not implemented and is therefore not offered by this launcher.
