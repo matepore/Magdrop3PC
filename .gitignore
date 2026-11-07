@@ -37,6 +37,9 @@
 .vscode/
 CMakeUserPresets.json
 
-# WPF launcher build output
-/launcher/**/bin/
-/launcher/**/obj/
+# Keep the compiled launcher executable in the repository root
+!/MagicalDropLauncher.exe
+!/MagicalDropLauncher.pdb
+
+# WPF launcher source and project files
+/launcher/
