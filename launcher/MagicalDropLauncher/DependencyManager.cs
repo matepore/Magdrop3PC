@@ -14,7 +14,7 @@ internal static class DependencyManager
     {
         string? visualStudio = await FindVisualStudioInstallationAsync();
         string? nmake = FindNMake(visualStudio);
-        string? cmake = FindCMake();
+        string? cmake = FindCMake(visualStudio);
         string vcpkgRoot = Path.Combine(repositoryRoot, "vcpkg");
         string vcpkgExe = Path.Combine(vcpkgRoot, "vcpkg.exe");
         string toolchain = Path.Combine(vcpkgRoot, "scripts", "buildsystems", "vcpkg.cmake");
@@ -147,15 +147,21 @@ internal static class DependencyManager
         return null;
     }
 
-    private static string? FindCMake()
+    private static string? FindCMake(string? visualStudio)
     {
         string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
         string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        string[] candidates =
-        [
+        var candidates = new List<string>
+        {
             Path.Combine(programFiles, "CMake", "bin", "cmake.exe"),
             Path.Combine(programFilesX86, "CMake", "bin", "cmake.exe")
-        ];
+        };
+
+        if (!string.IsNullOrWhiteSpace(visualStudio))
+        {
+            candidates.Add(Path.Combine(visualStudio, "Common7", "IDE",
+                "CommonExtensions", "Microsoft", "CMake", "CMake", "bin", "cmake.exe"));
+        }
 
         string? installed = candidates.FirstOrDefault(File.Exists);
         if (installed is not null)
