@@ -386,7 +386,7 @@ public partial class MainWindow : Window
         };
 
         string environmentCommand = $"chcp 65001 >nul && call \"{vcVarsPath}\" x64 >nul && set";
-        environmentStartInfo.Arguments = $"/d /s /c \"\"{environmentCommand}\"\"";
+        environmentStartInfo.Arguments = $"/d /s /c \"{environmentCommand}\"";
 
         using var environmentProcess = new Process { StartInfo = environmentStartInfo };
         environmentProcess.Start();
