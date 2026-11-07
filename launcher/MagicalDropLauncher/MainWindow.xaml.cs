@@ -385,10 +385,8 @@ public partial class MainWindow : Window
             StandardErrorEncoding = System.Text.Encoding.UTF8
         };
 
-        environmentStartInfo.ArgumentList.Add("/d");
-        environmentStartInfo.ArgumentList.Add("/c");
-        environmentStartInfo.ArgumentList.Add(
-            $"chcp 65001 >nul && call \\"{vcVarsPath}\\" x64 >nul && set");
+        string environmentCommand = $"chcp 65001 >nul && call \"{vcVarsPath}\" x64 >nul && set";
+        environmentStartInfo.Arguments = $"/d /s /c \"\"{environmentCommand}\"\"";
 
         using var environmentProcess = new Process { StartInfo = environmentStartInfo };
         environmentProcess.Start();
@@ -409,7 +407,7 @@ public partial class MainWindow : Window
 
         var msvcEnvironment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (string line in environmentOutput.Split(
-                     new[] { "\\r\\n", "\\n" }, StringSplitOptions.RemoveEmptyEntries))
+                     new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
         {
             int separator = line.IndexOf('=');
             // CMD's SET output can include pseudo-variables such as "=C:".
