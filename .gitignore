@@ -5,6 +5,7 @@
 # Game builds and generated build trees
 /magdrop3/build/
 /magdrop3/build-*/
+/magdrop3/Build-*/
 /magdrop3/cmake-build-*/
 /magdrop3/.vs/
 
@@ -35,3 +36,10 @@
 .vs/
 .vscode/
 CMakeUserPresets.json
+
+# Keep the compiled launcher executable in the repository root
+!/MagicalDropLauncher.exe
+!/MagicalDropLauncher.pdb
+
+# WPF launcher source and project files
+/launcher/

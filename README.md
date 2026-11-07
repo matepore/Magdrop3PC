@@ -1,24 +1,31 @@
 # Magdrop3PC
 
-A Windows static recompilation of **Magical Drop III** (Neo Geo MVS), built with the [neogeorecomp](https://github.com/matepore/neogeorecomp) toolkit.
+A Windows x64 static recompilation of **Magical Drop III** (Neo Geo MVS), built with the [neogeorecomp](https://github.com/matepore/neogeorecomp) toolkit.
 
 The project recompiles the game's original code into a native executable while keeping game-specific code, the recompilation toolkit, and game data separate. It provides a foundation for running, studying, and modifying the game on Windows.
 
-Game ROMs and Neo Geo BIOS files are not included. You must provide your own compatible files.
+## Implemented Enhancements
+
+This project includes several enhancements to the original game, improving its input configuration, display options, and audio controls.
+
+- **In-Game Keyboard and Controller Binding Configuration** — Customize keyboard keys and controller buttons directly from the game.
+- **Custom Window Scaling** — Choose window sizes ranging from 2x to 5x the original resolution.
+- **Aspect Ratio Options** — Switch between the original aspect ratio, 4:3, and 16:9.
+- **Fullscreen Mode** — Play in fullscreen.
+- **VSync** — Enable or disable vertical synchronization.
+- **Display Filters** — Choose between Nearest Neighbor, Bilinear, and CRT filters.
+- **Audio Controls** — Adjust the game volume or mute the audio.
 
 ## Project Structure
 
+- `MagicalDropLauncher.exe` — Windows x64 launcher for checking game files, selecting a game region, checking build dependencies, and starting the game.
 - `magdrop3/` — Game-specific source code, CMake configuration, tests, and local game data directories.
 - `magdrop3/roms/` — Location for the Magical Drop III ROM files.
 - `magdrop3/bios/` — Location for the required Neo Geo BIOS files.
-- `magdrop3/settings.cfg` — Unified local configuration for controls and graphics.
-- `magdrop3/Execute_Magdrop3_SDL2.bat` — Windows launcher for the SDL2 executable.
-- `MagicalDropGUI.ps1` — PowerShell graphical interface for launching the game and configuring controls.
-- `MagicalDropGUI.vbs` — Windows launcher for the graphical interface.
+- `magdrop3/Build-*/settings.cfg` — Local game configuration, including controls, graphics, and sound settings.
+- `magdrop3/Build-<Region>/entries.txt` — Recorded missing entries for the selected region, when miss recording is enabled.
 - `neogeorecomp/` — Git submodule containing the Neo Geo recompilation toolkit.
-- `vcpkg/` — Local dependency-manager checkout used for the build; it is not included in the repository.
-
-The `metalslug-reference/` directory used during development is maintained separately and is not required to build the project.
+- `vcpkg/` — Local dependency-manager checkout used for development builds; it is not included in the repository.
 
 ## Clone the Repository
 
@@ -35,36 +42,75 @@ If you already cloned the repository without its submodules, run:
 git submodule update --init --recursive
 ```
 
-## Requirements
+## Getting Started
 
-To build the SDL2 executable on Windows, you need:
+1. Obtain a compatible **Magical Drop III MVS ROM set** and the required Neo Geo BIOS files.
+2. Place the game data in the `magdrop3/roms/` and `magdrop3/bios/` directories, respectively. See [Game Data](#game-data) for the file requirements.
+3. Run `MagicalDropLauncher.exe` from the repository root.
+4. Use the launcher to verify the game files, select the game region, check build dependencies, and start the game.
 
-- Windows x64
-- Git
+The launcher includes a dependency checker and can guide you through installing or configuring missing build dependencies. Some installation steps may require an internet connection, administrator permissions, or interaction with external installers.
+
+## Game Data
+
+This project requires **uncompressed BIOS and ROM files**. It does not support `.zip` or similar archives.
+
+Place your compatible files in these directories:
+
+```text
+magdrop3/roms/
+magdrop3/bios/
+```
+
+The ROM set must correspond to the **MVS arcade version of Magical Drop III**. The required BIOS files must also be available for the selected game configuration.
+
+## Local Configuration and Generated Files
+
+The game stores configuration separately for each build region:
+
+```text
+magdrop3/Build-<Region>/settings.cfg
+```
+
+This file contains local settings for controls, graphics, and sound. If it is missing, the game starts with default settings.
+
+When **Record misses for next build** is enabled in the launcher, missing entries are recorded in:
+
+```text
+magdrop3/Build-<Region>/entries.txt
+```
+
+The runtime merges new entries with existing ones, removes duplicates, and sorts the resulting list when the game exits.
+
+## Developer Information
+
+The launcher is intended to simplify setup and dependency checks for players. Developers who want to build the SDL2 executable manually need the following tools on Windows x64:
+
+- Git, including support for submodules
 - CMake
 - Visual Studio C++ Build Tools, including MSVC and the Windows SDK
+- NMake, available through the Visual Studio developer environment
 - vcpkg
 - SDL2 installed through vcpkg for the `x64-windows` triplet
-- A compatible Magical Drop III MVS ROM set and the required Neo Geo BIOS files to run the game
 
-## Set Up vcpkg and SDL2
+### Set Up vcpkg and SDL2
 
-The project uses [vcpkg](https://github.com/microsoft/vcpkg) to manage SDL2. If you do not already have vcpkg, open a terminal at the repository root and clone and bootstrap it:
+If vcpkg is not already available, clone and bootstrap it from the repository root:
 
 ```powershell
 git clone https://github.com/microsoft/vcpkg.git
-.\vcpkg\bootstrap-vcpkg.bat
+.\\vcpkg\\bootstrap-vcpkg.bat
 ```
 
 Install SDL2 for the Windows x64 triplet:
 
 ```powershell
-.\vcpkg\vcpkg.exe install sdl2:x64-windows
+.\\vcpkg\\vcpkg.exe install sdl2:x64-windows
 ```
 
-These commands place the vcpkg checkout in the repository root, which matches the toolchain path used in the build instructions below. If you keep vcpkg elsewhere, adjust the toolchain path accordingly.
+These commands place the vcpkg checkout in the repository root, matching the toolchain path used below. If vcpkg is stored elsewhere, adjust the toolchain path accordingly.
 
-## Build the SDL2 Executable
+### Build the SDL2 Executable
 
 Open **Developer PowerShell for Visual Studio** with the x64 MSVC toolchain available. Run these commands from the repository root:
 
@@ -86,60 +132,20 @@ magdrop3/build-sdl2/magdrop3.exe
 
 CMake must be able to locate SDL2 through the selected vcpkg toolchain. If configuration fails, verify that MSVC and NMake are available in the current terminal, SDL2 is installed for `x64-windows`, and the toolchain path points to the intended vcpkg checkout.
 
-## Run the Game
+## Known Limitations
 
-First, place your ROM and BIOS files in the directories described in the **Game Data** section. From the repository root, run:
-
-```powershell
-.\magdrop3\build-sdl2\magdrop3.exe `
-  --rom-path ".\magdrop3\roms" `
-  --bios-path ".\magdrop3\bios"
-```
-
-Alternatively, launch the game using:
-
-```text
-magdrop3/Execute_Magdrop3_SDL2.bat
-```
-
-The launcher uses the executable at `magdrop3/build-sdl2/magdrop3.exe`.
-
-## Game Data
-
-This repository does not distribute Magical Drop III ROMs or Neo Geo BIOS files.
-
-Place your own legally obtained, compatible files in these directories:
-
-```text
-magdrop3/roms/
-magdrop3/bios/
-```
-
-The ROM set must correspond to the **MVS arcade version of Magical Drop III**. The required BIOS files must also be available for the selected game configuration.
-
-Keep ROMs and BIOS files separate from source code and generated build outputs. Never commit game ROMs or BIOS files to the repository.
-
-## Controller Configuration
-
-Controller, graphics, and future sound settings are stored locally in:
-
-```text
-magdrop3/settings.cfg
-```
-
-The file is divided into named sections such as `[Controls]`, `[Graphics]`, and `[Sound]`. If it is missing, the game starts with default settings.
-
-The PowerShell GUI (`MagicalDropGUI.ps1`) provides a graphical interface for launching the game and configuring controls. `MagicalDropGUI.vbs` can be used to start the GUI from Windows.
-
-Controller binding capture requires the SDL2-enabled executable. The local `settings.cfg` file is excluded from version control so personal settings do not become part of the shared project.
+- The launcher and game executable target Windows x64.
+- Game ROM and BIOS files must be supplied separately and must be uncompressed.
+- Building from source requires the external development dependencies listed above.
+- The launcher source is maintained locally and is not included in this repository; the compiled launcher executable is distributed in the repository root.
+- Installing missing dependencies may require an internet connection, administrator permissions, or manual interaction with external installers.
+- Miss recording depends on the game's runtime reaching the relevant code paths; it should not be considered an exhaustive list of every possible missing entry.
+- Game data and build outputs are region-specific.
 
 ## Dependency and Attribution
 
 - **[neogeorecomp](https://github.com/matepore/neogeorecomp)** — Neo Geo recompilation toolkit used as the foundation of this project.
 - **[Original neogeorecomp project](https://github.com/sp00nznet/neogeorecomp)** — Upstream project from which the toolkit originated.
-- **[Metal Slug reference project](https://github.com/sp00nznet/metalslug)** — Reference implementation used during development.
-
-The `neogeorecomp/` directory is a Git submodule with its own repository history. Toolkit changes are maintained separately from the main `Magdrop3PC` repository.
 
 CMake, Visual Studio Build Tools, SDL2, and vcpkg are external dependencies and must be installed or obtained separately. Consult their respective projects for installation instructions and licensing terms.
 
