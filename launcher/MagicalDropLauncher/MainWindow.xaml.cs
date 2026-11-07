@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     private static readonly string SettingsFile =
         Path.Combine(SettingsDirectory, "launcher-settings.json");
 
+    private readonly string _repositoryRoot;
     private readonly string _gameDirectory;
     private string _romDirectory;
     private string _biosDirectory;
@@ -46,14 +47,15 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        string repositoryRoot = FindRepositoryRoot() ?? AppContext.BaseDirectory;
-        _gameDirectory = Path.Combine(repositoryRoot, "magdrop3");
+        _repositoryRoot = FindRepositoryRoot() ?? AppContext.BaseDirectory;
+        _gameDirectory = Path.Combine(_repositoryRoot, "magdrop3");
 
         LauncherSettings settings = LoadSettings();
         _romDirectory = settings.RomDirectory ?? Path.Combine(_gameDirectory, "roms");
         _biosDirectory = settings.BiosDirectory ?? Path.Combine(_gameDirectory, "bios");
         _executablePath = settings.ExecutablePath ??
             Path.Combine(_gameDirectory, "build-final", "magdrop3.exe");
+        RecordMissesCheckBox.IsChecked = settings.RecordMisses;
 
         BiosRegionCombo.SelectedIndex = 0;
         UpdatePathLabels();
@@ -103,7 +105,8 @@ public partial class MainWindow : Window
             {
                 RomDirectory = _romDirectory,
                 BiosDirectory = _biosDirectory,
-                ExecutablePath = _executablePath
+                ExecutablePath = _executablePath,
+                RecordMisses = RecordMissesCheckBox.IsChecked == true
             };
 
             File.WriteAllText(SettingsFile,
@@ -215,6 +218,112 @@ public partial class MainWindow : Window
     {
         UpdatePathLabels();
         RefreshValidation();
+    }
+
+    private void RecordMissesCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        SaveSettings();
+    }
+
+    private void MissesHelp_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show(this,
+            "When enabled, the game records code entry points that were executed by the interpreter instead of native recompiled code. " +
+            "The entries are merged into the selected region's entries.txt file when the game exits. Existing entries are preserved, " +
+            "and the next build uses that file to generate additional native code. This can improve native-code coverage over multiple play sessions.",
+            "Record Misses for the Next Build",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    private async void CheckDependencies_Click(object sender, RoutedEventArgs e)
+    {
+        if (!BuildButton.IsEnabled)
+            return;
+
+        CheckDependenciesButton.IsEnabled = false;
+        BuildButton.IsEnabled = false;
+        LaunchButton.IsEnabled = false;
+        BiosRegionCombo.IsEnabled = false;
+
+        StatusText.Text = "CHECKING BUILD DEPENDENCIES";
+        StatusText.Foreground = System.Windows.Media.Brushes.Orange;
+        StatusDetailText.Text = "Checking Visual Studio C++ tools, NMake, CMake, vcpkg and SDL2...";
+        ValidationList.ItemsSource = new[] { "Dependency check: in progress" };
+
+        List<string>? report = null;
+        string? finalTitle = null;
+        string? finalDetail = null;
+        System.Windows.Media.Brush? finalColor = null;
+
+        try
+        {
+            IReadOnlyList<DependencyStatus> statuses =
+                await DependencyManager.CheckAsync(_repositoryRoot);
+            IReadOnlyList<DependencyStatus> missing = statuses.Where(item => !item.Installed).ToList();
+
+            if (missing.Count > 0)
+            {
+                string missingList = string.Join(Environment.NewLine,
+                    missing.Select(item => $"• {item.Name}: {item.Details}"));
+
+                MessageBoxResult choice = MessageBox.Show(this,
+                    $"The following build dependencies are missing:{Environment.NewLine}{Environment.NewLine}" +
+                    $"{missingList}{Environment.NewLine}{Environment.NewLine}" +
+                    "Would you like the launcher to download or install them now? " +
+                    "Installers may request administrator permission.",
+                    "Build Dependencies Missing",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (choice == MessageBoxResult.Yes)
+                {
+                    StatusText.Text = "INSTALLING BUILD DEPENDENCIES";
+                    StatusDetailText.Text = "Follow the installer prompts. This may take several minutes.";
+                    await DependencyManager.InstallMissingAsync(_repositoryRoot, missing);
+                    statuses = await DependencyManager.CheckAsync(_repositoryRoot);
+                }
+            }
+
+            report = statuses.Select(item =>
+                $"{(item.Installed ? "[OK]" : "[MISSING]")} {item.Name} — {item.Details}").ToList();
+
+            int remaining = statuses.Count(item => !item.Installed);
+            finalTitle = remaining == 0 ? "ALL BUILD DEPENDENCIES READY" : $"{remaining} DEPENDENCY(IES) MISSING";
+            finalDetail = remaining == 0
+                ? "The required build tools and SDL2 installation were found."
+                : "Install the missing components and run this check again.";
+            finalColor = remaining == 0
+                ? System.Windows.Media.Brushes.LightGreen
+                : System.Windows.Media.Brushes.Orange;
+        }
+        catch (Exception ex)
+        {
+            finalTitle = "DEPENDENCY INSTALLATION FAILED";
+            finalDetail = ex.Message.Length > 900 ? ex.Message[..900] + "..." : ex.Message;
+            finalColor = System.Windows.Media.Brushes.OrangeRed;
+            report = new List<string> { "See the error details for information about the failed installation." };
+
+            MessageBox.Show(this, ex.Message,
+                "Magical Drop III - Dependency error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            CheckDependenciesButton.IsEnabled = true;
+            BuildButton.IsEnabled = true;
+            BiosRegionCombo.IsEnabled = true;
+            RefreshValidation();
+
+            if (report is not null)
+                ValidationList.ItemsSource = report;
+            if (finalTitle is not null)
+                StatusText.Text = finalTitle;
+            if (finalDetail is not null)
+                StatusDetailText.Text = finalDetail;
+            if (finalColor is not null)
+                StatusText.Foreground = finalColor;
+        }
     }
 
     private void BrowseRomDirectory_Click(object sender, RoutedEventArgs e)
@@ -648,6 +757,15 @@ public partial class MainWindow : Window
             startInfo.ArgumentList.Add("--bios");
             startInfo.ArgumentList.Add(SelectedBiosFile);
 
+            if (RecordMissesCheckBox.IsChecked == true)
+            {
+                string buildDirectory = Path.Combine(_gameDirectory, $"Build-{SelectedBuildRegion}");
+                Directory.CreateDirectory(buildDirectory);
+                string missesFile = Path.Combine(buildDirectory, "entries.txt");
+                startInfo.ArgumentList.Add("--dump-misses");
+                startInfo.ArgumentList.Add(missesFile);
+            }
+
             Process.Start(startInfo);
         }
         catch (Exception ex)
@@ -665,5 +783,6 @@ public partial class MainWindow : Window
         public string? RomDirectory { get; set; }
         public string? BiosDirectory { get; set; }
         public string? ExecutablePath { get; set; }
+        public bool RecordMisses { get; set; }
     }
 }
