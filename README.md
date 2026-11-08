@@ -12,7 +12,7 @@ The project recompiles the game's original code into a native executable while k
 
 ## Implemented Enhancements
 
-This project includes several enhancements to the original game, improving its input configuration, display options, and audio controls.
+This project includes several enhancements to the original game, improving its input configuration, display options, and audio controls. To access them you will need to press the F1 key in-game.
 
 - **In-Game Keyboard and Controller Binding Configuration** — Customize keyboard keys and controller buttons directly from the game.
 - **Custom Window Scaling** — Choose window sizes ranging from 2x to 5x the original resolution.
