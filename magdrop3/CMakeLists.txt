@@ -4,12 +4,19 @@ project(magdrop3 VERSION 0.1.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+# Select the system BIOS used by this regional build.
+set(MAGDROP3_BIOS_FILE "sp-s2.sp1" CACHE STRING
+    "Neo Geo BIOS filename used by this build")
+
 # Use the toolkit checkout beside this project.
 set(NEOGEORECOMP_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/../neogeorecomp"
     CACHE PATH "neogeorecomp checkout")
 
 add_subdirectory("${NEOGEORECOMP_DIR}" neogeorecomp_build)
+
+target_compile_definitions(neogeorecomp PRIVATE
+    NG_DEFAULT_BIOS_NAME=\\"${MAGDROP3_BIOS_FILE}\\")
 
 # Leave empty for the initial interpreter-only build.
 set(MAGDROP3_ROM_DIR "" CACHE PATH
@@ -52,7 +59,6 @@ if(MAGDROP3_ROM_DIR)
 
     file(MAKE_DIRECTORY "${GEN_DIR}")
 
-    set(MAGDROP3_BIOS_FILE "sp-s2.sp1" CACHE STRING "Neo Geo BIOS filename")
     add_custom_command(
         OUTPUT ${GEN_SOURCES} "${GEN_DIR}/recomp_common.h"
         COMMAND magdrop3_recomp
@@ -89,6 +95,13 @@ if(MSVC)
     target_compile_definitions(magdrop3 PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_compile_definitions(magdrop3_recomp PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
+
+# Prepare the standalone runtime layout beside the executable.
+add_custom_command(TARGET magdrop3 POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:magdrop3>/rom"
+        "$<TARGET_FILE_DIR:magdrop3>/bios"
+)
 
 # Copy SDL2 if the optional windowed runtime was built.
 if(WIN32 AND TARGET SDL2::SDL2)

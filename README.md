@@ -26,8 +26,8 @@ This project includes several enhancements to the original game, improving its i
 
 - `MagicalDropLauncher.exe` — Windows x64 launcher for checking game files, selecting a game region, checking build dependencies, and starting the game.
 - `magdrop3/` — Game-specific source code, CMake configuration, tests, and local game data directories.
-- `magdrop3/roms/` — Location for the Magical Drop III ROM files.
-- `magdrop3/bios/` — Location for the required Neo Geo BIOS files.
+- `rom/` — Uncompressed Magical Drop III ROM files, placed beside the game executable.
+- `bios/` — Required uncompressed Neo Geo BIOS files, placed beside the game executable.
 - `magdrop3/Build-*/settings.cfg` — Local game configuration, including controls, graphics, and sound settings.
 - `magdrop3/Build-<Region>/entries.txt` — Recorded missing entries for the selected region, when miss recording is enabled.
 - `neogeorecomp/` — Git submodule containing the Neo Geo recompilation toolkit.
@@ -51,9 +51,8 @@ git submodule update --init --recursive
 ## Getting Started
 
 1. Obtain a compatible **Magical Drop III MVS ROM set** and the required Neo Geo BIOS files.
-2. Place the game data in the `magdrop3/roms/` and `magdrop3/bios/` directories, respectively. See [Game Data](#game-data) for the file requirements.
-3. Run `MagicalDropLauncher.exe` from the repository root.
-4. Use the launcher to verify the game files, select the game region, check build dependencies, and start the game.
+2. Place the uncompressed game ROM files in `rom/` and the required Neo Geo system files in `bios/`, both beside the built game executable. See [Game Data](#game-data) for the file requirements.
+3. Run `magdrop3.exe` directly. No command-line arguments are required when using these default folder names.
 
 The launcher includes a dependency checker and can guide you through installing or configuring missing build dependencies. Some installation steps may require an internet connection, administrator permissions, or interaction with external installers.
 
@@ -61,12 +60,17 @@ The launcher includes a dependency checker and can guide you through installing 
 
 This project requires **uncompressed BIOS and ROM files**. It does not support `.zip` or similar archives.
 
-Place your compatible files in these directories:
+Place your compatible files in these directories, next to `magdrop3.exe`:
 
 ```text
-magdrop3/roms/
-magdrop3/bios/
+Build-<Region>/
+├── magdrop3.exe
+├── SDL2.dll
+├── rom/
+└── bios/
 ```
+
+CMake creates the empty `rom/` and `bios/` directories beside the executable after building. You must supply the files yourself. The runtime resolves these paths relative to the executable, not the process working directory. Existing command-line overrides (`--rom-path`, `--bios-path`, and `--bios`) remain available.
 
 The ROM set must correspond to the **MVS arcade version of Magical Drop III**. The required BIOS files must also be available for the selected game configuration.
 
@@ -138,6 +142,8 @@ magdrop3/build-sdl2/magdrop3.exe
 
 CMake must be able to locate SDL2 through the selected vcpkg toolchain. If configuration fails, verify that MSVC and NMake are available in the current terminal, SDL2 is installed for `x64-windows`, and the toolchain path points to the intended vcpkg checkout.
 
+Select the system BIOS for a regional build with `-DMAGDROP3_BIOS_FILE=<filename>` during CMake configuration. The default is `sp-s2.sp1` (MVS Asia/Europe).
+
 ## Known Limitations
 
 - The launcher and game executable target Windows x64.
@@ -147,6 +153,7 @@ CMake must be able to locate SDL2 through the selected vcpkg toolchain. If confi
 - Installing missing dependencies may require an internet connection, administrator permissions, or manual interaction with external installers.
 - Miss recording depends on the game's runtime reaching the relevant code paths; it should not be considered an exhaustive list of every possible missing entry.
 - Game data and build outputs are region-specific.
+- The runtime expects `rom/` and `bios/` beside the executable by default; both folders must contain compatible, uncompressed files.
 
 ## License, Dependency and Attribution
 
