@@ -16,7 +16,7 @@ set(NEOGEORECOMP_DIR
 add_subdirectory("${NEOGEORECOMP_DIR}" neogeorecomp_build)
 
 target_compile_definitions(neogeorecomp PRIVATE
-    NG_DEFAULT_BIOS_NAME=\\"${MAGDROP3_BIOS_FILE}\\")
+    "NG_DEFAULT_BIOS_NAME=\"${MAGDROP3_BIOS_FILE}\"")
 
 # Leave empty for the initial interpreter-only build.
 set(MAGDROP3_ROM_DIR "" CACHE PATH
